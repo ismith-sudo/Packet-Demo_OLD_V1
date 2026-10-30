@@ -1,0 +1,1050 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="description" content="Packet prototype V3: commissioning, mapping, canonical asset model, analytics and fleet. Simulated data.">
+<title>Packet · Demo V3</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Replica of the four reference screens: dark navy icon rail, white app bar, card-based panels, blue primary. Single light theme. */
+:root{
+  --navy:#1E3A8A;--navy-2:#2B4BA8;--rail-active:#3B5BDB;
+  --bg:#F3F4F6;--card:#FFFFFF;--card-head:#F5F6F8;--line:#E5E7EB;--line-2:#D1D5DB;
+  --ink:#111827;--text:#374151;--muted:#6B7280;--faint:#9CA3AF;
+  --blue:#2563EB;--blue-2:#1D4ED8;--blue-bg:#EFF4FF;--blue-line:#BFD3FE;--blue-text:#1E40AF;
+  --amber:#B45309;--amber-bg:#FEF7E8;--amber-line:#F2DCB3;
+  --green:#15803D;--green-bg:#ECFDF3;--red:#B91C1C;--red-bg:#FEF2F2;
+  --sans:'Inter',system-ui,-apple-system,sans-serif;--mono:'JetBrains Mono','SFMono-Regular',Consolas,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+code{font-family:var(--mono);font-size:11px;background:var(--blue-bg);color:var(--blue-text);padding:2px 6px;border-radius:4px;white-space:nowrap}
+code.amber{background:var(--amber-bg);color:var(--amber)}
+code.grey{background:#F3F4F6;color:var(--muted)}
+h1{font-size:17px;font-weight:600;margin:0;letter-spacing:-.01em}
+h2{font-size:14px;font-weight:600;margin:0}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.eyebrow{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+/* ---- Shell ---- */
+.shell{display:grid;grid-template-columns:64px 1fr;min-height:100%}
+.rail{background:var(--navy);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:10px;position:sticky;top:0;height:100vh}
+.rail .logo{width:34px;height:34px;border-radius:8px;background:var(--rail-active);display:grid;place-items:center;margin-bottom:10px}
+.rail button{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;color:#C7D2FE;opacity:.85}
+.rail button:hover{background:rgba(255,255,255,.08);opacity:1}
+.rail button.is-active{background:var(--rail-active);color:#fff;opacity:1}
+.rail svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.rail .logo svg{width:18px;height:18px;stroke:#fff}
+.rail .avatar{margin-top:auto}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--blue-bg);color:var(--blue-text);display:grid;place-items:center;font-size:11px;font-weight:600;border:1px solid var(--blue-line)}
+.main{min-width:0;display:flex;flex-direction:column}
+.bar{background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:12px 20px;min-height:58px}
+.bar .sp{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:7px;padding:4px 9px;font-size:11.5px;background:var(--card);white-space:nowrap;color:var(--text)}
+.chip.model{background:var(--blue-bg);border-color:var(--blue-line);color:var(--blue-text);font-family:var(--mono);font-size:11px}
+.chip.model::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--blue)}
+.chip.green{background:var(--green-bg);color:var(--green);border-color:#BBE5C8}
+.chip.amber{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-line)}
+.chip.sel{padding-right:7px}
+.chip.sel::after{content:"⌄";color:var(--muted);margin-left:2px}
+.screen{display:none;flex:1;min-width:0}
+.screen.is-on{display:flex;flex-direction:column}
+.foot{font-size:10.5px;color:var(--faint);padding:8px 20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;background:var(--card)}
+
+/* ---- Cards and primitives ---- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;min-width:0}
+.card-h{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card-head);border-bottom:1px solid var(--line);border-radius:10px 10px 0 0;font-weight:600}
+.card-h .sp{flex:1}
+.card-h small{font-weight:400;color:var(--muted);font-size:12px}
+.card-b{padding:14px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:7px;border:1px solid var(--line-2);background:var(--card);font-weight:500;font-size:12.5px;color:var(--ink);white-space:nowrap}
+.btn:hover{border-color:var(--faint)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.primary:hover{background:var(--blue-2)}
+.btn.small{padding:4px 9px;font-size:11.5px;border-radius:6px}
+.btn.outline-blue{border-color:var(--blue-line);color:var(--blue);background:var(--blue-bg)}
+.btn.danger{border-color:#FCA5A5;color:var(--red)}
+.btn[disabled]{opacity:.5;cursor:default}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:5px;background:#F3F4F6;color:var(--muted);white-space:nowrap}
+.tag.green{background:var(--green-bg);color:var(--green)}
+.tag.amber{background:var(--amber-bg);color:var(--amber)}
+.tag.blue{background:var(--blue-bg);color:var(--blue-text)}
+.tag.red{background:var(--red-bg);color:var(--red)}
+.tag.outline{background:transparent;border:1px solid var(--line-2);font-weight:500}
+.tag.outline.amber{border-color:var(--amber-line);color:var(--amber)}
+.tag.outline.blue{border-color:var(--blue-line);color:var(--blue-text)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block}
+.dot.amber{background:var(--amber)}.dot.red{background:var(--red)}.dot.grey{background:var(--faint)}.dot.blue{background:var(--blue)}
+.bar-h{height:6px;border-radius:3px;background:#E9EBEF;overflow:hidden;display:flex}
+.bar-h i{display:block;height:100%;background:var(--blue)}
+.bar-h i.amber{background:var(--amber)}.bar-h i.green{background:var(--green)}.bar-h i.red{background:var(--red)}.bar-h i.grey{background:var(--line-2)}.bar-h i.dark{background:#7C4A03}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--line);background:var(--card-head)}
+.tbl td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl td.r,.tbl th.r{text-align:right}
+.tbl .raw{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:12.5px}
+.kv span:first-child{color:var(--muted)}
+.toggle{width:34px;height:18px;border-radius:9px;background:var(--blue);position:relative;display:inline-block;flex:none}
+.toggle::after{content:"";position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:#fff}
+.toggle.off{background:var(--line-2)}.toggle.off::after{right:auto;left:2px}
+.conf{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+.conf i{width:26px;height:5px;border-radius:3px;background:#E9EBEF;position:relative;overflow:hidden;display:inline-block}
+.conf i::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--c);background:var(--amber)}
+.conf.grey i::after{background:var(--line-2)}
+.conf.green i::after{background:var(--green)}
+.note{font-size:11.5px;color:var(--muted)}
+.info{display:block;line-height:1.7;background:var(--blue-bg);border-radius:7px;padding:8px 10px;font-size:12px;color:var(--blue-text)}
+.info::before{content:"i";display:inline-grid;width:14px;height:14px;border-radius:50%;border:1px solid var(--blue-text);font-size:9px;place-items:center;font-weight:600;margin-right:8px;vertical-align:middle}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 14px;border-radius:8px;font-size:12.5px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+.toast.is-on{opacity:1}
+
+/* ---- Screen 1: Map ---- */
+.map-wrap{display:grid;grid-template-columns:minmax(0,1fr) 450px;flex:1;min-height:0}
+.map-tools{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.map-tools .sp{flex:1}
+.rosetta{display:inline-flex;border:1px solid var(--line-2);border-radius:7px;overflow:hidden}
+.rosetta button{padding:5px 12px;font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--muted)}
+.rosetta button.is-on{background:var(--ink);color:#fff}
+.zoom{display:inline-flex;border:1px solid var(--line-2);border-radius:7px;overflow:hidden}
+.zoom button{width:26px;height:26px;font-size:14px;color:var(--muted);border-right:1px solid var(--line)}
+.zoom button:last-child{border-right:0}
+.canvas{position:relative;background:#FAFAFB;background-image:radial-gradient(var(--line-2) .7px,transparent .7px);background-size:14px 14px;height:880px;overflow:hidden}
+.canvas svg{position:absolute;inset:0;width:100%;height:100%}
+.canvas svg path{fill:none;stroke-width:1.6}
+.canvas svg path.hi{stroke:var(--blue)}.canvas svg path.md{stroke:var(--amber)}.canvas svg path.corr{stroke:var(--amber);stroke-dasharray:5 4}.canvas svg path.un{stroke:var(--faint);stroke-dasharray:3 4}.canvas svg path.src{stroke:#C9CED6}.canvas svg path.asset{stroke:#C9CED6;stroke-width:1.2}
+.canvas svg path.hi.sel{stroke-width:2.6}
+.canvas svg marker path{fill:var(--blue);stroke:none}
+.colhead{position:absolute;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line-2);padding-bottom:5px}
+.src{position:absolute;width:140px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:4px;padding:6px 9px}
+.src b{display:block;font-size:12.5px;font-weight:600}
+.src span{font-family:var(--mono);font-size:9.5px;color:var(--muted);display:block;line-height:1.3}
+.pill{position:absolute;width:176px;height:30px;border:1.5px solid var(--blue-line);border-radius:15px;background:var(--card);display:flex;align-items:center;gap:9px;padding:0 12px;font-family:var(--mono);font-size:11px;color:var(--ink);cursor:pointer;box-shadow:0 1px 1px rgba(17,24,39,.03)}
+.pill i{width:6px;height:6px;border-radius:50%;background:var(--blue);flex:none}
+.pill.sel{background:var(--blue-bg);border-color:var(--blue);box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+.pill.md{border-color:var(--amber)}.pill.md i{background:var(--amber)}
+.pill.corr{border-color:var(--amber);border-style:dashed;background:var(--amber-bg)}.pill.corr i{background:var(--amber)}
+.pill.un{border-color:var(--line-2);border-style:dashed;background:#F3F4F6;color:var(--muted)}.pill.un i{background:var(--faint)}
+.pill .edit{margin-left:auto;background:var(--amber);color:#fff;font-size:8.5px;font-weight:700;padding:1px 6px;border-radius:7px;font-family:var(--sans)}
+.canon{position:absolute;width:200px;padding-left:16px}
+.canon::before{content:"";position:absolute;left:0;top:4px;width:10px;height:10px;border-radius:50%;background:var(--blue)}
+.canon.md::before{background:var(--amber)}.canon.corr::before{background:var(--amber-bg);border:1.5px dashed var(--amber);width:8px;height:8px}.canon.un::before{background:#fff;border:1px solid var(--line-2);width:8px;height:8px}
+.canon.sel::before{background:#fff;border:2px solid var(--blue);width:7px;height:7px;box-shadow:0 0 0 3px var(--blue-bg)}
+.canon b{display:block;font-size:12px;font-weight:600;line-height:1.2}
+.canon.md b,.canon.corr b{color:var(--amber)}
+.canon span{font-family:var(--mono);font-size:9.5px;color:var(--muted)}
+.canon.un b{color:var(--muted);font-weight:500}
+.anode{position:absolute;text-align:center;transform:translateX(-50%)}
+.anode i{display:block;width:14px;height:14px;border-radius:50%;border:1.5px solid var(--blue);background:#fff;margin:0 auto 3px}
+.anode b{display:block;font-size:11px;font-weight:600;color:var(--blue-text)}
+.anode span{font-size:9.5px;color:var(--muted);display:block}
+.anode.md i{border-color:var(--amber)}.anode.md b{color:var(--amber)}
+.anode.grey i{border-color:var(--line-2)}.anode.grey b{color:var(--muted)}
+.unres{position:absolute;display:flex;gap:8px;align-items:center;color:var(--muted);font-size:11px}
+.unres i{width:22px;height:22px;border-radius:50%;background:#fff;border:1px solid var(--line-2);display:grid;place-items:center;font-style:normal;font-weight:700;color:var(--muted)}
+.unres small{display:block;font-family:var(--mono);font-size:9.5px}
+.canvas-foot{position:absolute;left:12px;right:12px;bottom:12px;display:flex;align-items:center;gap:16px;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:7px 12px;font-size:11px;color:var(--muted)}
+.canvas-foot .sp{flex:1}
+.canvas-foot .lk{display:inline-flex;align-items:center;gap:7px}
+.canvas-foot .lk i{width:20px;height:0;border-top:2px solid var(--blue)}
+.canvas-foot .lk.md i{border-color:var(--amber)}.canvas-foot .lk.corr i{border-top-style:dashed;border-color:var(--amber)}.canvas-foot .lk.un i{border-top-style:dotted;border-color:var(--faint)}
+.insp{background:var(--card);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.insp-h{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--card-head);border-bottom:1px solid var(--line);font-weight:600}
+.insp-h .sp{flex:1}
+.insp-b{padding:14px 16px;overflow:auto;display:grid;gap:14px;align-content:start}
+.otree{display:grid;gap:2px;font-size:12.5px}
+.otree div{display:flex;align-items:center;gap:8px;height:22px;position:relative}
+.otree i{width:18px;height:18px;border-radius:5px;border:1px solid var(--blue-line);background:var(--blue-bg);display:grid;place-items:center;flex:none}
+.otree i svg{width:11px;height:11px;stroke:var(--blue);fill:none;stroke-width:2}
+.otree div.leaf i{background:var(--blue);border-color:var(--blue)}.otree div.leaf i svg{stroke:#fff}
+.otree div.leaf{font-weight:600}
+.otree .ln{width:10px;height:1px;background:var(--line-2);margin-left:-4px}
+.boxes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.boxes>div{border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+.boxes>div.full{grid-column:1/-1}
+.boxes b{display:block;font-size:14px;font-weight:600;margin-top:2px}
+.why{display:grid;gap:8px}
+.why>div{background:#F5F6F8;border-left:3px solid var(--line-2);border-radius:6px;padding:8px 10px;display:grid;gap:5px}
+.why>div.top{border-left-color:var(--blue);background:var(--blue-bg)}
+.why .wh{display:flex;align-items:center;gap:8px}
+.why .wh .sp{flex:1}
+.why .wh .w{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.why p{margin:0;font-size:12px;color:var(--text)}
+.lineage{display:grid;grid-template-columns:repeat(4,1fr);align-items:start;position:relative;font-size:9.5px;color:var(--muted);text-align:center}
+.lineage::before{content:"";position:absolute;left:12%;right:12%;top:12px;height:1px;background:var(--line-2)}
+.lineage>div{display:grid;justify-items:center;gap:3px;position:relative}
+.lineage>div::after{content:"→";position:absolute;right:-6px;top:4px;color:var(--faint);font-size:11px}
+.lineage>div:last-child::after{display:none}
+.lineage i{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--blue);background:#fff;display:grid;place-items:center;font-style:normal;font-size:10px;color:var(--blue);font-weight:600}
+.lineage .m{font-family:var(--mono);font-size:9px;color:var(--blue)}
+.live-chart{height:70px;border-radius:6px;background:linear-gradient(180deg,#F5F7FB,#FFFFFF);border:1px solid var(--line)}
+.live-chart svg{width:100%;height:100%;display:block}
+.bignum{display:flex;align-items:baseline;gap:6px}
+.bignum b{font-size:30px;font-weight:700;letter-spacing:-.02em}
+.bignum span{color:var(--muted);font-size:13px}
+.bignum .lv{margin-left:auto;font-size:11px;color:var(--green);display:inline-flex;align-items:center;gap:5px}
+
+/* ---- Screen 2: Commission ---- */
+.com-wrap{display:grid;grid-template-columns:240px minmax(0,1fr);flex:1;min-height:0}
+.com-side{background:var(--card);border-right:1px solid var(--line);padding:16px 0;display:flex;flex-direction:column}
+.com-side .hd{padding:0 16px 14px;border-bottom:1px solid var(--line)}
+.com-side .hd h2{font-size:15px;margin-top:3px}
+.com-side .hd .sub{font-size:11.5px}
+.com-side .pb{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:11px;color:var(--blue);font-weight:600}
+.com-side .pb .bar-h{flex:1}
+.cstep{display:grid;grid-template-columns:20px 1fr auto;gap:4px 10px;padding:14px 16px;border-bottom:1px solid var(--line);align-items:start}
+.cstep i{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center;font-style:normal;font-size:10px;color:#fff;margin-top:1px}
+.cstep.done i{background:var(--green);border-color:var(--green)}
+.cstep.done i::before{content:"✓"}
+.cstep.cur{background:var(--blue-bg);border-left:3px solid var(--blue);padding-left:13px}
+.cstep.cur i{border-color:var(--blue);color:var(--blue)}
+.cstep.cur i::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--blue)}
+.cstep b{font-size:13px;font-weight:600}
+.cstep.cur b{color:var(--blue)}
+.cstep.todo b{color:var(--muted)}
+.cstep .t{font-family:var(--mono);font-size:10.5px;color:var(--muted);background:#F3F4F6;padding:1px 6px;border-radius:4px}
+.cstep p{grid-column:2/-1;margin:0;font-size:11.5px;color:var(--muted);line-height:1.4}
+.cstep.todo p{color:var(--faint)}
+.cstep .bar-h{grid-column:2/-1;height:4px}
+.est{margin:16px;background:var(--card-head);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.est b{display:block;font-size:22px;font-weight:700;color:var(--blue);margin:3px 0 2px}
+.est .row{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:4px}
+.est .row.cur{color:var(--blue)}
+.com-main{display:flex;flex-direction:column;min-width:0}
+.com-head{display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--card);border-bottom:1px solid var(--line)}
+.com-head .sp{flex:1}
+.rail-steps{display:flex;align-items:center;flex-wrap:wrap;gap:8px 0;padding:10px 20px;background:var(--card);border-bottom:1px solid var(--line)}
+.rstep{display:flex;align-items:center;gap:8px;padding-right:28px;position:relative;font-size:12px;color:var(--muted)}
+.rstep::after{content:"";position:absolute;right:8px;top:50%;width:18px;height:1px;background:var(--line-2)}
+.rstep:last-of-type::after{display:none}
+.rstep i{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center;font-style:normal;font-size:10px;color:#fff;flex:none}
+.rstep.done i{background:var(--green);border-color:var(--green)}.rstep.done i::before{content:"✓"}
+.rstep.cur i{border-color:var(--blue)}.rstep.cur i::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--blue)}
+.rstep div{display:grid;line-height:1.25}
+.rstep b{font-weight:600;color:var(--ink);font-size:12px;white-space:nowrap}
+.rstep.cur b{color:var(--blue)}
+.rstep.todo b{color:var(--faint)}
+.rstep small{font-family:var(--mono);font-size:10px}
+.rstep.cur small{color:var(--blue)}
+.aibadge{margin-left:auto;white-space:nowrap;background:var(--blue-bg);border:1px solid var(--blue-line);color:var(--blue-text);border-radius:7px;padding:7px 12px;font-size:12.5px;font-weight:600;display:inline-flex;gap:8px;align-items:center}
+.com-body{padding:16px 20px;display:grid;gap:16px;flex:1}
+.com-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+.cov>div{padding:11px 0;border-bottom:1px solid var(--line)}
+.cov>div:last-of-type{border-bottom:0}
+.cov .ch{display:flex;align-items:center;gap:10px;font-size:13px}
+.cov .ch b{font-weight:600}
+.cov .ch .mono{font-size:11px;color:var(--muted)}
+.cov .ch .sp{flex:1}
+.cov .ch .n{font-family:var(--mono);font-size:12px}
+.cov .ch .n b{color:var(--green)}.cov .ch .n b.amber{color:var(--amber)}
+.cov .bar-h{margin:7px 0 6px}
+.cov .cs{font-size:11.5px;color:var(--muted)}
+.cov .tot{display:flex;align-items:center;gap:12px;padding-top:12px;font-size:13px}
+.cov .tot b{font-weight:600}
+.cov .tot .bar-h{width:200px}
+.cov .tot .g{color:var(--green);font-weight:600}.cov .tot .a{color:var(--amber);font-weight:600}
+.aicard{border-color:var(--blue-line)}
+.aicard .card-h{background:var(--blue-bg);color:var(--blue-text);border-color:var(--blue-line)}
+.aicard .big{display:flex;align-items:baseline;gap:10px}
+.aicard .big b{font-size:44px;font-weight:700;color:var(--blue);letter-spacing:-.02em;line-height:1}
+.aicard .big span{color:var(--text);font-size:13px;line-height:1.25}
+.tiers{display:grid;gap:7px;margin:14px 0}
+.tiers>div{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;font-size:11.5px;color:var(--muted)}
+.tiers .sq{display:flex;gap:2px}.tiers .sq i{width:7px;height:7px;background:var(--blue);display:inline-block}
+.tiers .sq.a i{background:var(--amber)}.tiers .sq.g i{background:var(--line-2)}
+.tiers .n{font-family:var(--mono);font-size:11px;color:var(--ink)}
+.tiers .n b{color:var(--blue)}.tiers .n b.a{color:var(--amber)}
+.srcs{background:var(--card-head);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:7px;font-size:12px;color:var(--text)}
+.srcs .eyebrow{font-size:10px}
+.srcs div{display:flex;gap:8px;align-items:center}
+.bigbtn{width:100%;justify-content:center;padding:12px;font-size:14px;font-weight:600;border-radius:8px;margin-top:12px}
+.needs .card-h .f{display:inline-flex;gap:6px;margin-left:auto}
+.needs .card-h .f button{font-size:11px;padding:3px 8px;border-radius:12px;border:1px solid var(--line-2);color:var(--muted);background:#fff}
+.needs .card-h .f button.is-on{border-color:var(--amber);color:var(--amber);background:var(--amber-bg)}
+.path{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.path .sel{position:relative}
+.path .sel>button{border:1.5px solid var(--blue);border-radius:5px;padding:2px 8px;font-weight:600;color:var(--blue-text);background:#fff;display:inline-flex;gap:6px;align-items:center}
+.dd{position:absolute;top:26px;left:0;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(17,24,39,.12);padding:4px;min-width:130px;z-index:5;display:none}
+.dd.is-open{display:block}
+.dd button{display:flex;justify-content:space-between;width:100%;text-align:left;padding:7px 10px;border-radius:5px;font-size:12.5px;color:var(--muted)}
+.dd button.is-on{background:var(--blue-bg);color:var(--ink);font-weight:600}
+.dd button:hover{background:#F3F4F6}
+.com-foot{display:flex;align-items:center;gap:16px;padding:12px 20px;background:var(--card);border-top:1px solid var(--line);font-size:12.5px;font-weight:500}
+.com-foot .sp{flex:1}
+.com-foot .g{color:var(--green)}.com-foot .a{color:var(--amber)}.com-foot .m{color:var(--muted)}
+
+/* ---- Screen 3: Analytics ---- */
+.an-top{display:grid;grid-template-columns:270px 1fr 450px;border-bottom:1px solid var(--line);background:var(--card)}
+.an-list{border-right:1px solid var(--line);max-height:360px;overflow:auto}
+.an-list .hd{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--card-head);border-bottom:1px solid var(--line);font-weight:600}
+.an-it{padding:10px 14px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:center;cursor:pointer}
+.an-it.is-on{background:var(--blue-bg)}
+.an-it b{font-family:var(--mono);font-size:11.5px;font-weight:500;display:flex;gap:6px;align-items:center}
+.an-it b::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--blue)}
+.an-it b .tag{font-size:9px;padding:1px 5px}
+.an-it .v{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.an-it .n{font-family:var(--mono);font-size:11px;text-align:right}
+.an-it .n.a{color:var(--amber)}
+.an-it .bar-h{grid-column:1/-1;height:3px}
+.an-mid{min-width:0;border-right:1px solid var(--line)}
+.an-mid .hd{padding:10px 14px;background:var(--card-head);border-bottom:1px solid var(--line);font-weight:600}
+.codebox{margin:12px 14px;background:#F3F4F6;border:1px solid var(--line);border-radius:7px;padding:10px 12px;font-family:var(--mono);font-size:11.5px;line-height:1.6;color:var(--text)}
+.codebox .k{color:var(--blue-text)}
+.an-node{min-width:0}
+.an-node .hd{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card-head);border-bottom:1px solid var(--line);font-weight:600}
+.an-node .hd .sp{flex:1}
+.an-node .hd .mono{font-size:11px;color:var(--muted);font-weight:400}
+.cont{margin:8px 14px;border:1px solid var(--line);border-radius:8px;padding:9px 12px;display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center}
+.cont b{font-family:var(--mono);font-size:11.5px;font-weight:500}
+.cont b span{color:var(--muted);margin-left:6px}
+.cont .m{font-size:11.5px;color:var(--text)}
+.cont.warn{border-color:var(--amber-line);background:var(--amber-bg)}
+.resrow{margin:8px 14px;background:var(--card-head);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:12px;display:flex;gap:18px}
+.resrow b{font-weight:600}
+.sampling{margin:8px 14px 12px}
+.sampling .r{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.sampling .r b{font-weight:600}
+.an-tabs{display:flex;align-items:center;gap:4px;padding:0 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.an-tabs button{padding:12px 12px;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;display:inline-flex;gap:7px;align-items:center}
+.an-tabs button.is-on{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
+.an-tabs .cnt{background:var(--amber-bg);color:var(--amber);font-size:10px;padding:1px 6px;border-radius:9px;font-weight:600}
+.an-tabs .sp{flex:1}
+.an-tabs .meta{font-size:11.5px;color:var(--muted)}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px;flex:1}
+.chart-card .card-h{font-weight:600;flex-wrap:wrap}
+.chart-card .lg{display:inline-flex;gap:14px;font-size:11px;color:var(--muted);font-weight:400;margin-left:auto}
+.chart-card .lg span{display:inline-flex;gap:5px;align-items:center}
+.chart-card .lg i{width:14px;height:2px;background:var(--blue);display:inline-block}
+.chart-card .lg i.dash{background:none;border-top:2px dashed var(--blue)}
+.chart-card .lg i.band{height:8px;background:var(--blue-bg);border:1px solid var(--blue-line)}
+.chart-card .lg i.amber{background:var(--amber);height:3px}
+.chart-card .lg i.win{height:10px;width:10px;background:var(--amber-bg);border:1px solid var(--amber-line)}
+.chart-card svg{width:100%;height:auto;display:block}
+.chart-card svg text{font-family:var(--mono);font-size:9.5px;fill:var(--muted)}
+.chart-card svg .grid{stroke:var(--line);stroke-width:1}
+.chart-card svg .ln{fill:none;stroke:var(--blue);stroke-width:2}
+.chart-card svg .ln.dash{stroke-dasharray:5 4}
+.chart-card svg .area{fill:url(#g1);stroke:none}
+.chart-card svg .band{fill:var(--blue-bg);stroke:var(--blue-line);stroke-width:1}
+.chart-card svg .win{fill:var(--amber-bg);stroke:var(--amber-line);stroke-dasharray:3 3}
+.chart-card svg .rate{stroke:var(--amber);stroke-dasharray:4 3;stroke-width:1.2}
+.chart-card svg .now{stroke:var(--muted);stroke-dasharray:3 3}
+.chart-card svg .lbl{fill:#fff;font-weight:600;font-family:var(--sans);font-size:9.5px}
+.chart-card svg .pt{fill:var(--amber)}
+.chart-card svg .ptb{fill:#fff;stroke:var(--blue);stroke-width:2}
+.chart-card svg .cal{fill:#F5F6F8;stroke:var(--line)}
+.chart-card svg .caltext{fill:var(--text);font-size:9px}
+
+/* ---- Screen 4: Fleet ---- */
+.fl-top{position:relative;height:640px;background:#F7F8FA;border-bottom:1px solid var(--line);overflow:hidden}
+.fl-stage{position:absolute;left:0;top:0;width:1360px;height:640px;transform-origin:top left}
+.fl-stage svg.geo{position:absolute;inset:0;width:100%;height:100%}
+.geo .st{fill:#E3ECFA;stroke:#8FB0F0;stroke-width:1.2}
+.geo .st2{fill:#D9E6FA}
+.geo text{font-family:var(--sans);font-size:12px;font-weight:600;fill:#6D8EDC;letter-spacing:.1em}
+.geo line{stroke:#5B7FD6;stroke-width:1.2}
+.geo line.off{stroke:#9CA3AF;stroke-dasharray:4 4}
+.reg{position:absolute;left:16px;top:16px;width:340px;max-height:600px;overflow:auto}
+.reg .card-b{display:grid;gap:12px}
+.reg .chips{display:flex;gap:6px}
+.reg .chips .chip{font-size:11px;padding:3px 8px}
+.reg .st-row{display:flex;gap:12px;font-size:11.5px;font-weight:600}
+.reg .st-row .h{color:var(--green)}.reg .st-row .w{color:var(--amber)}.reg .st-row .f{color:var(--red)}.reg .st-row .o{color:var(--muted)}
+.reg .vc{display:grid;grid-template-columns:1fr 140px auto;gap:6px 10px;align-items:center;font-size:12px}
+.reg .vc .n{font-family:var(--mono);font-size:11px;text-align:right}
+.reg .ntbl{font-size:11.5px}
+.reg .ntbl th,.reg .ntbl td{padding:6px 8px}
+.reg .ntbl .s.h{color:var(--green);font-weight:600}.reg .ntbl .s.w{color:var(--amber);font-weight:600}.reg .ntbl .s.f{color:var(--red);font-weight:600}.reg .ntbl .s.o{color:var(--muted)}
+.reg .ntbl tr.w td{background:var(--amber-bg)}.reg .ntbl tr.f td{background:var(--red-bg)}.reg .ntbl tr.o td{color:var(--muted)}
+.reg .ntbl .v{font-family:var(--mono);font-size:10.5px;color:var(--blue)}
+.reg .ntbl .v.old{color:var(--muted)}
+.flag{display:flex;gap:8px;align-items:center;background:var(--amber-bg);border-radius:6px;padding:6px 10px;font-size:11.5px}
+.flag b{color:var(--amber);font-weight:700}
+.flag .mono{font-size:11px}
+.node-mk{position:absolute;transform:translate(-50%,-50%);text-align:center}
+.node-mk i{width:30px;height:30px;border-radius:50%;background:#fff;border:2px solid var(--green);display:grid;place-items:center;font-style:normal;font-weight:700;font-size:12px;color:var(--ink);margin:0 auto}
+.node-mk.off i{border-style:dashed;border-color:var(--faint);color:var(--muted)}
+.node-mk span{display:block;font-size:10.5px;color:var(--text);margin-top:3px;white-space:nowrap}
+.node-mk .vt{position:absolute;top:-12px;left:22px;font-family:var(--mono);font-size:9px;background:var(--blue);color:#fff;padding:1px 5px;border-radius:4px}
+.node-mk .pend{position:absolute;top:-12px;left:22px;font-family:var(--mono);font-size:9px;background:var(--line-2);color:var(--muted);padding:1px 5px;border-radius:4px;white-space:nowrap}
+.hub{position:absolute;transform:translate(-50%,-50%);text-align:center}
+.hub i{display:block;width:12px;height:12px;border-radius:50%;background:var(--blue);margin:0 auto;box-shadow:0 0 0 3px #fff,0 0 0 4px var(--blue)}
+.hub span{font-size:9.5px;color:var(--muted);display:block;margin-top:4px;white-space:nowrap}
+.roll{position:absolute;right:16px;top:16px;width:380px}
+.roll .card-b{display:grid;gap:8px}
+.wave{border:1px solid var(--line);border-radius:8px;padding:9px 12px;display:grid;gap:5px}
+.wave .wh{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.wave .wh b{font-weight:600}
+.wave .wh .sp{flex:1}
+.wave .wh i{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center;font-style:normal;font-size:9px;color:#fff;flex:none}
+.wave.done .wh i{background:var(--green);border-color:var(--green)}.wave.done .wh i::before{content:"✓"}
+.wave.cur{border-color:var(--blue);background:var(--blue-bg)}
+.wave.cur .wh i{border-color:var(--blue)}.wave.cur .wh i::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--blue)}
+.wave.q{color:var(--muted)}
+.wave .g{font-size:11px;color:var(--muted)}
+.wave .g.ok{color:var(--green)}
+.wave .bar-h{height:4px}
+.roll .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.roll .arm{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;padding-top:6px}
+.fl-bottom{background:var(--card)}
+.fl-tabs{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--line);background:var(--card-head)}
+.fl-tabs button{padding:12px 12px;font-size:13px;color:var(--muted);border-bottom:2px solid transparent}
+.fl-tabs button.is-on{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.fl-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:0}
+.fl-grid>div{padding:18px 20px}
+.fl-grid>div+div{border-left:1px solid var(--line)}
+.cr-h{display:flex;gap:16px;align-items:baseline;font-size:12.5px;color:var(--muted)}
+.cr-h b{font-weight:700;color:var(--ink);font-size:13px}
+.apr{display:flex;align-items:center;gap:10px;background:#F3F4F6;border-left:3px solid var(--green);border-radius:4px;padding:8px 12px;font-size:12.5px;margin-top:6px}
+.apr .ck{color:var(--green);font-weight:700}
+.apr .role{font-weight:600}
+.apr .sp{flex:1}
+.apr .t{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.difflist{background:#F5F6F8;border:1px solid var(--line);border-radius:7px;padding:10px 12px;font-family:var(--mono);font-size:11px;line-height:1.7;color:var(--text)}
+.difflist .p{color:var(--green)}.difflist .m{color:var(--amber)}
+.difflist span.f{color:var(--blue-text)}
+.audit{display:grid;gap:0;margin-top:8px}
+.audit>div{display:grid;grid-template-columns:44px 1fr;gap:10px;padding:8px 0 8px 18px;position:relative;font-size:12.5px}
+.audit>div::before{content:"";position:absolute;left:2px;top:13px;width:8px;height:8px;border-radius:50%;background:var(--blue)}
+.audit>div::after{content:"";position:absolute;left:5px;top:23px;bottom:-6px;width:2px;background:var(--line)}
+.audit>div:last-child::after{display:none}
+.audit>div.pend::before{background:#fff;border:2px solid var(--faint);width:6px;height:6px}
+.audit>div.pend{color:var(--muted)}
+.audit .t{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+/* ---- Single-screen layout (fits 1440×900 and 1366×768 without page scroll) ---- */
+.shell{height:100vh}
+.main{height:100vh;overflow:hidden;display:flex;flex-direction:column}
+.bar{padding:9px 20px;min-height:52px;flex:none}
+.foot{flex:none;padding:6px 20px}
+.screen.is-on{flex:1;min-height:0}
+.map-wrap{flex:1;min-height:0}
+.canvas{flex:1;height:auto;min-height:0}
+.insp{min-height:0}
+.insp-b{overflow:auto;padding:12px 16px;gap:12px}
+.com-wrap{flex:1;min-height:0}
+.com-side{overflow:auto;padding:12px 0}
+.com-side .hd{padding:0 16px 10px}
+.cstep{padding:9px 16px}
+.cstep.cur{padding-left:13px}
+.cstep p{font-size:11px}
+.est{margin:10px 16px;padding:10px 12px}
+.est b{font-size:20px}
+.com-main{min-height:0}
+.com-head{padding:9px 20px}
+.rail-steps{padding:8px 20px}
+.com-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;padding:12px 20px;overflow:hidden}
+.com-grid{gap:12px;flex:none}
+.card-b{padding:12px 14px}
+.card-h{padding:8px 14px}
+.cov>div{padding:8px 0}
+.cov .bar-h{margin:5px 0 4px}
+.cov .tot{padding-top:8px}
+.aicard .big b{font-size:36px}
+.tiers{margin:10px 0;gap:6px}
+.srcs{padding:8px 12px;gap:5px}
+.bigbtn{padding:10px;margin-top:10px}
+.needs{flex:1;min-height:0;display:flex;flex-direction:column}
+.needs-scroll{overflow:auto;flex:1;min-height:0}
+.needs .tbl th{position:sticky;top:0;z-index:1}
+.needs .tbl td{padding:7px 12px}
+.com-foot{padding:9px 20px}
+.an-top{height:282px;flex:none}
+.an-list,.an-mid,.an-node{overflow:auto;max-height:282px}
+.an-it{padding:7px 14px}
+.codebox{margin:10px 14px;padding:8px 12px;font-size:11px;line-height:1.5}
+.tbl.compact th{padding:6px 12px}.tbl.compact td{padding:5px 12px}
+.cont{margin:6px 14px;padding:7px 12px}
+.an-tabs{flex:none}
+.an-tabs button{padding:9px 12px}
+.charts{flex:1;min-height:0;padding:12px 16px;gap:12px;overflow:hidden}
+.chart-card{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.chart-card .card-h{flex-wrap:wrap;gap:6px 12px;align-items:center}
+.chart-card .ct{display:grid;line-height:1.25}
+.chart-card .ct small{font-weight:400;font-size:11px;color:var(--muted)}
+.chart-card .lg{margin-left:auto;flex-wrap:wrap;justify-content:flex-end;row-gap:4px}
+.chart-card .card-b{flex:1;min-height:0;display:flex;flex-direction:column}
+.chart-card .card-b>table{display:block;overflow:auto}
+.chart-card svg{width:100%;height:100%;min-height:0;flex:1}
+.fl-top{flex:1;min-height:0;height:auto}
+.reg{max-height:calc(100% - 32px);overflow:auto}
+.roll{max-height:calc(100% - 32px);overflow:auto}
+.reg .card-b{gap:10px}
+.fl-bottom{flex:none;max-height:270px;display:flex;flex-direction:column;min-height:0}
+.fl-tabs{flex:none}
+.fl-tabs button{padding:8px 12px}
+.fl-grid{overflow:auto;min-height:0}
+.fl-grid>div{padding:12px 20px}
+.apr{padding:6px 12px;margin-top:5px}
+.difflist{padding:8px 12px;line-height:1.6}
+.audit>div{padding:6px 0 6px 18px}
+.node-mk.warn i{border-color:var(--amber)}
+.node-mk.fault i{border-color:var(--red)}
+.node-mk.fault .pend{background:var(--red-bg);color:var(--red)}
+.node-mk.warn .vt{background:var(--amber)}
+tr.nr-in{animation:nrin .4s ease}
+@keyframes nrin{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (max-width:1100px){.main{height:auto;overflow:visible}.shell{height:auto}.an-top{height:auto}.an-list,.an-mid,.an-node{max-height:none}.fl-bottom{max-height:none}}
+
+@media (max-width:1100px){.map-wrap,.com-grid,.an-top,.charts,.fl-grid{grid-template-columns:1fr}.com-wrap{grid-template-columns:1fr}.com-side{display:none}.insp{border-left:0;border-top:1px solid var(--line)}.reg,.roll{position:static;width:auto;margin:12px}.fl-top{height:auto}.fl-stage{display:none}}
+@media (max-width:760px){.shell{grid-template-columns:1fr}.rail{flex-direction:row;height:auto;position:static;padding:8px 12px}.rail .avatar{margin-top:0;margin-left:auto}.bar{flex-wrap:wrap}.canvas{overflow:auto}.rail-steps{overflow-x:auto}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---- V3 additions: guided bar, model screen, signals strip ---- */
+.foot{align-items:center;gap:14px;min-height:42px;padding:5px 20px}
+.guide{display:flex;align-items:center;gap:10px;font-size:12px;flex:1;min-width:0;justify-content:center}
+.guide .gs{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;background:#F3F4F6;padding:2px 7px;border-radius:5px}
+.guide .gc{color:var(--text);max-width:640px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.guide button{color:var(--ink);border:1px solid var(--line-2);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:500;background:#fff}
+.guide button.next{background:var(--blue);border-color:var(--blue);color:#fff}
+.guide button.ghost{border-color:transparent;color:var(--muted)}
+.guide button[disabled]{opacity:.35}
+.sig7{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.sig7>div{display:grid;gap:3px;justify-items:center;text-align:center;font-size:9px;color:var(--muted);line-height:1.1}
+.sig7 i{width:14px;height:14px;border-radius:50%;background:var(--line-2);display:block}
+.sig7 i.y{background:var(--green)}.sig7 i.n{background:var(--red)}.sig7 i.m{background:var(--line-2)}
+.sig7 b{font-family:var(--mono);font-weight:500;font-size:9px;color:var(--ink)}
+.scalecase{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.scalecase>div{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.scalecase b{display:block;font-family:var(--mono);font-size:15px;font-weight:600}
+.scalecase b.blue{color:var(--blue)}
+.scalecase svg{width:100%;height:28px;display:block;margin-top:4px}
+.scalecase svg polyline{fill:none;stroke-width:1.4;vector-effect:non-scaling-stroke}
+.scalecase .full{grid-column:1/-1;background:var(--blue-bg);border-color:var(--blue-line);font-size:11.5px;color:var(--blue-text)}
+.model-body{flex:1;min-height:0;display:grid;grid-template-columns:1.55fr .85fr .85fr;grid-template-rows:1fr 1fr;gap:12px;padding:12px 16px;overflow:hidden}
+.model-body .card{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.model-body .card-h{white-space:nowrap}
+.model-body .card-h small{overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+.model-body .card-h .sp{display:none}
+.model-body .card-b{flex:1;min-height:0;overflow:auto}
+.model-body .tall{grid-row:span 2}
+.ros{width:100%;border-collapse:separate;border-spacing:0;font-size:11.5px}
+.ros th{position:sticky;top:0;background:var(--card-head);z-index:1;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:7px 10px;border-bottom:1px solid var(--line);text-align:left}
+.ros th small{display:block;font-weight:400;text-transform:none;letter-spacing:0;font-family:var(--mono);font-size:10px}
+.ros td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.ros td.std{font-weight:600;white-space:nowrap;font-size:11px}
+.ros td.std small{display:block;font-weight:400;color:var(--muted);font-family:var(--mono);font-size:10px}
+.ros td.g{background:#F5F6F8;font-weight:600;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:5px 10px}
+.rc{display:inline-block;font-family:var(--mono);font-size:9.5px;padding:1px 5px;border-radius:5px;border:1px solid transparent;white-space:nowrap}
+.rc.hi{background:var(--blue-bg);color:var(--blue-text);border-color:var(--blue-line)}
+.rc.md{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-line)}
+.rc.lo{background:#F3F4F6;color:var(--muted);border-style:dashed;border-color:var(--line-2)}
+.rc.na{color:var(--faint)}
+.ros tr:hover td{background:var(--blue-bg)}
+.stencil{display:grid;gap:10px}
+.cls-card{border:1.5px solid var(--blue);border-radius:10px;background:var(--blue-bg);padding:10px 12px}
+.cls-card h3{margin:0;font-size:13px;color:var(--blue-text)}
+.cls-card .pts{margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;font-family:var(--mono);font-size:9.5px;color:var(--blue-text)}
+.cls-card .pts span{display:flex;justify-content:space-between;gap:6px;min-width:0;overflow:hidden;white-space:nowrap}
+.cls-card .pts span em{color:var(--muted);font-style:normal}
+.stamps{display:grid;gap:6px}
+.stamp{border:1px solid var(--line);border-radius:8px;padding:6px 10px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;position:relative;overflow:hidden}
+.stamp::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
+.stamp.md::before{background:var(--amber)}
+.stamp.q::before{background:var(--line-2)}
+.stamp b{font-weight:600;font-size:12px;white-space:nowrap}
+.stamp .n{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:right;white-space:nowrap}
+.stamp .raws{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.stamp .tag{font-weight:500}
+.drift{font-size:12px}
+.drift .dr{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.drift .dr:last-child{border-bottom:0}
+.drift .dr .was{color:var(--muted);text-decoration:line-through}
+.remap{background:var(--blue-bg);border:1px solid var(--blue-line);border-radius:8px;padding:10px 12px;display:grid;gap:8px;font-size:12.5px}
+.remap b{font-weight:600}
+.dq{display:grid;gap:6px}
+.dqr{display:grid;grid-template-columns:110px 1fr 80px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px}
+.dqr:last-child{border-bottom:0}
+.dqr .k{font-weight:600}
+.dqr .k small{display:block;font-family:var(--mono);font-size:10px;color:var(--muted);font-weight:400}
+.dqr .d{color:var(--text)}
+.dqr .d code{font-size:10px}
+.dqr svg{width:80px;height:24px;display:block}
+.dqr svg polyline{fill:none;stroke-width:1.4;vector-effect:non-scaling-stroke}
+.cov i.fill{transition:width 1.4s cubic-bezier(.2,.7,.2,1)}
+.why>div.phys{border-left-color:var(--green)}
+.why>div.phys .tag{border-color:#BBE5C8;color:var(--green)}
+@media (max-width:1100px){.model-body{grid-template-columns:1fr;grid-template-rows:none;overflow:visible}.model-body .tall{grid-row:auto}.guide .gc{display:none}}
+
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <nav class="rail" aria-label="Main">
+    <div class="logo"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
+    <!--RAIL-->
+    <button data-s="commission" title="Commissioning"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
+    <button data-s="map" title="Map & Contextualize"><svg viewBox="0 0 24 24"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg></button>
+    <button data-s="model" title="Canonical Asset Model"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="6" rx="1.5"/><rect x="13" y="15" width="8" height="6" rx="1.5"/><rect x="13" y="3" width="8" height="6" rx="1.5"/><rect x="3" y="15" width="8" height="6" rx="1.5"/><path d="M7 9v6M17 9v6"/></svg></button>
+    <button data-s="analytics" title="Analytics & Runtime"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></button>
+    <button data-s="fleet" title="Fleet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg></button>
+    <button title="Data"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
+    <button title="Security"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></button>
+    <div class="avatar">JO</div>
+  </nav>
+  <div class="main">
+    <!-- ================= SCREEN 1: MAP ================= -->
+    <section class="screen" id="s-map">
+      <div class="bar"><div><h1>Map &amp; Contextualize</h1><div class="sub">Chisholm Ridge Solar — is this tag mapped correctly?</div></div><span class="sp"></span><span class="chip model">canonical-model v4.12</span><span class="chip sel">Chisholm Ridge Solar</span><div class="avatar">JO</div></div>
+      <div class="map-wrap">
+        <div style="min-width:0;display:flex;flex-direction:column;min-height:0">
+          <div class="map-tools"><span class="chip">1,984 tags</span><span class="chip green" id="m-mapped">1,572 mapped</span><span class="chip amber" id="m-unmapped">412 unmapped</span><span class="sp"></span><span class="eyebrow" style="margin-right:4px">Rosetta</span><div class="rosetta" id="rosetta"><button class="is-on" data-v="raw">→ RAW</button><button data-v="canon">CANONICAL</button></div><div class="zoom"><button id="zoom-out">−</button><button id="zoom-in">+</button><button id="zoom-reset" style="font-size:11px">⟲</button></div></div>
+          <div class="canvas" id="canvas"></div>
+        </div>
+        <aside class="insp">
+          <div class="insp-h">Inspector<span class="sp"></span><code id="insp-tag">INV3_ACPWR_L1</code></div>
+          <div class="insp-b" id="insp"></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ================= SCREEN 2: COMMISSION ================= -->
+    <section class="screen" id="s-commission">
+      <div class="com-wrap">
+        <aside class="com-side">
+          <div class="hd"><span class="eyebrow">Commissioning</span><h2>Cimarron Flats Solar</h2><div class="sub" style="font-family:var(--mono);font-size:11px">pkt-node-052 · New Mexico · 48 inverters</div><div class="pb"><div class="bar-h"><i style="width:42%"></i></div>Step 3 of 6</div></div>
+          <div class="cstep done"><i></i><b>Register site</b><span class="t">1m 34s</span><p>Node ID assigned · geo-tagged · 48 inverters declared · Tier 2 criticality</p></div>
+          <div class="cstep done"><i></i><b>Connect &amp; discover</b><span class="t">3m 12s</span><p>3 protocols auto-detected · 1,247 tags discovered · Vendor A 3.1 MW ×48 fingerprinted</p></div>
+          <div class="cstep cur"><i></i><b>Map &amp; contextualize</b><span class="t" style="color:var(--blue);background:var(--blue-bg)" id="side-elapsed">5m 46s</span><p style="color:var(--text)">Packet proposed 1,180 of 1,247 tags · <span id="side-review">64</span> need human review</p><div class="bar-h"><i style="width:94.6%"></i></div><p>94.6% coverage · <span id="side-dec">0</span> human decisions made</p></div>
+          <div class="cstep todo"><i></i><b>Bind analytics</b><span class="t"></span><p>7 analytics auto-resolved from canonical model · 0 site-specific code needed</p></div>
+          <div class="cstep todo"><i></i><b>Review &amp; sign</b><span class="t"></span><p>CR-2293 auto-drafted · requires OT Lead + Cyber sign-off (Tier 2)</p></div>
+          <div class="cstep todo"><i></i><b>Deploy &amp; go live</b><span class="t"></span><p>Rollout with canary wave · automated health gates · node joins fleet</p></div>
+          <div class="est"><span class="eyebrow">Estimated total time</span><b>~18 min</b><div class="note">From node registration to first analytic output</div><div class="row"><span>Stages 1–2 completed</span><span class="mono">4m 46s</span></div><div class="row cur"><span>Stage 3 in progress</span><span class="mono" id="est-elapsed">5m 46s</span></div><div class="row"><span>Stages 4–6 estimated</span><span class="mono">~8 min</span></div></div>
+        </aside>
+        <div class="com-main">
+          <div class="com-head"><div><h1>Commission · Cimarron Flats Solar</h1><div class="sub">Step 3 of 6 — review proposed tag mappings before accepting</div></div><span class="sp"></span><span class="chip model">canonical-model v4.12</span><span class="chip">Started 14:08 CDT <span class="mono" style="color:var(--blue);margin-left:4px" id="elapsed">10m 32s</span></span><div class="avatar">JO</div></div>
+          <div class="rail-steps">
+            <div class="rstep done"><i></i><div><b>Register</b><small>1m 34s</small></div></div>
+            <div class="rstep done"><i></i><div><b>Discover</b><small>3m 12s</small></div></div>
+            <div class="rstep cur"><i></i><div><b>Map &amp; contextualize</b><small>5m 46s · in progress</small></div></div>
+            <div class="rstep todo"><i></i><div><b>Bind analytics</b><small>est. ~2 min</small></div></div>
+            <div class="rstep todo"><i></i><div><b>Sign &amp; deploy</b><small>est. ~4 min</small></div></div>
+            <div class="rstep todo"><i></i><div><b>Go live</b><small>est. ~2 min</small></div></div>
+            <div class="aibadge"><span id="ai-pct">94.6%</span> of this step proposed automatically</div>
+          </div>
+          <div class="com-body">
+            <div class="com-grid">
+              <div class="card"><div class="card-h">Protocol coverage<span class="sp"></span><small><span id="cov-disc">1,247</span> tags discovered · 3 protocols</small></div><div class="card-b cov" id="cov" style="padding-top:2px">
+                <div><div class="ch"><b>Modbus TCP</b><span class="mono">10.142.0.1–48 · HR range</span><span class="sp"></span><span class="n"><span data-n="876">876</span> / 876 <b>100%</b></span></div><div class="bar-h"><i class="green" data-w="100" style="width:100%"></i></div><div class="cs">Vendor A 3.1 MW ×48 · vendor manual matched · all tags proposed</div></div>
+                <div><div class="ch"><b>OPC-UA</b><span class="mono">opc.tcp://10.142.1.10:4840</span><span class="sp"></span><span class="n"><span data-n="229">229</span> / 241 <b>95.0%</b></span></div><div class="bar-h"><i class="green" data-w="95" style="width:95%"></i></div><div class="cs">Plant controller · SCADA · 12 tags unresolved — custom historian namespace</div></div>
+                <div><div class="ch"><b>S7 PLC</b><span class="mono">10.142.2.1 · rack 0</span><span class="tag outline amber">Needs attention</span><span class="sp"></span><span class="n"><span data-n="75">75</span> / 130 <b class="amber">57.7%</b></span></div><div class="bar-h"><i class="dark" data-w="57.7" style="width:57.7%"></i></div><div class="cs">LV switchgear + MV transformer PLC · custom DB blocks · 55 tags in review queue</div></div>
+                <div class="tot"><b>Total</b><div class="bar-h"><i data-w="94.6" style="width:94.6%"></i></div><span class="g"><span data-n="1180">1,180</span> proposed</span><span class="a">67 unresolved</span><b>94.6%</b></div>
+              </div></div>
+              <div class="card aicard"><div class="card-h">Proposed automatically — Multi-Signal Inference Engine</div><div class="card-b">
+                <div class="big"><b id="ai-n" data-n="1180">1,180</b><span>tags proposed<br>automatically</span></div>
+                <div class="tiers"><div><span class="sq"><i></i><i></i><i></i></span><div class="bar-h"><i data-w="89.5" style="width:89.5%"></i></div><span class="n"><b>1,116 ≥95%</b> <span style="color:var(--muted)">auto-accepted</span></span></div><div><span class="sq a"><i></i><i></i></span><div class="bar-h"><i class="amber" data-w="5.1" style="width:5.1%"></i></div><span class="n"><b class="a">64 80–94%</b> <span style="color:var(--muted)">needs review</span></span></div><div><span class="sq g"><i></i><i></i></span><div class="bar-h"><i class="grey" data-w="5.4" style="width:5.4%"></i></div><span class="n">67 &lt;80% <span style="color:var(--muted)">unresolved</span></span></div></div>
+                <div class="srcs"><span class="eyebrow">Proposal sources</span><div><span class="tag outline blue">Vendor doc</span>Vendor A 3.1 MW manual — weight 0.54</div><div><span class="tag outline">Prior site</span>3 sites (Chisholm, Pecos, Big Sandy) — weight 0.33</div><div><span class="tag outline">Data stats</span>Range, frequency, diurnal profile — weight 0.13</div></div>
+                <button class="btn primary bigbtn" id="accept-1116">Accept 1,116 high-confidence tags &nbsp;→</button>
+                <div class="note" style="text-align:center;margin-top:6px" id="accept-note">Leaves 131 for manual review · continues to step 4 after review</div>
+              </div></div>
+            </div>
+            <div class="card needs"><div class="card-h">Needs review <span class="tag outline amber" id="nr-count">64 tags</span><small>80–94% confidence · human decision required</small><span class="f" id="nr-filter"><button class="is-on" data-f="all">All</button><button data-f="s7">S7 (55)</button><button data-f="opc">OPC-UA (9)</button></span></div>
+              <div class="needs-scroll"><table class="tbl"><thead><tr><th>Raw tag</th><th>Proposed canonical path</th><th>Unit</th><th>Confidence</th><th>Provenance</th><th>Actions</th></tr></thead><tbody id="nr-rows"></tbody></table></div></div>
+          </div>
+          <div class="com-foot"><span class="g">● <span id="f-acc">1,116</span> tags accepted</span><span class="a">● <span id="f-wait">64</span> awaiting review</span><span class="m">● 67 unresolved, queued for later</span><span class="sp"></span><button class="btn">Save &amp; exit</button><button class="btn">→ Skip to binding</button><button class="btn primary" id="review-rest">Review remaining <span id="f-rem">64</span> tags →</button></div>
+        </div>
+      </div>
+    </section>
+
+        <!-- ================= SCREEN: MODEL ================= -->
+    <section class="screen" id="s-model">
+      <div class="bar"><div><h1>Canonical Asset Model</h1><div class="sub">One vocabulary across the fleet — where does each site stand, and what changed?</div></div><span class="sp"></span><span class="chip model">canonical-model v4.12</span><span class="chip">templates 11 · classes 8 · standard points 412</span><div class="avatar">JO</div></div>
+      <div class="model-body">
+        <div class="card tall"><div class="card-h">Rosetta matrix<small>— one standard point, the raw tag behind it at each site</small><span class="sp"></span><span class="tag outline blue">Inverter / String Inverter</span><span class="tag outline">BESS</span><span class="tag outline">POI</span></div><div class="card-b" style="padding:0"><table class="ros" id="ros"></table></div></div>
+        <div class="card"><div class="card-h">Template<small>— defined once, stamped per inverter at every site</small><span class="sp"></span><button class="btn small outline-blue" id="save-tpl">Save as template</button></div><div class="card-b"><div class="stencil">
+          <div class="cls-card"><span class="eyebrow" style="color:var(--blue-text)">Class · Inverter / String Inverter</span><h3>64 standard points</h3><div class="pts"><span>ac_power_kw<em>kW</em></span><span>ac_power_l1..l3_kw<em>kW</em></span><span>dc_voltage_v<em>V</em></span><span>dc_current_a<em>A</em></span><span>ac_voltage_ab_v<em>V · SF</em></span><span>ac_frequency_hz<em>Hz</em></span><span>power_factor<em>—</em></span><span>heatsink_temp_c<em>°C</em></span><span>cabinet_temp_c<em>°C</em></span><span>operating_state<em>enum</em></span><span>fault_code<em>code</em></span><span style="color:var(--muted)">… 52 more<em></em></span></div></div>
+          <div class="stamps" id="stamps"></div>
+        </div></div></div>
+        <div class="card"><div class="card-h">Data quality findings<small>— reported to your DAS, not alarmed here</small><span class="sp"></span><span class="tag outline">52 of 3,412 points</span></div><div class="card-b"><div class="dq" id="dq"></div></div></div>
+<div class="card" style="grid-column:2 / span 2"><div class="card-h">Drift and re-mapping<small>— scheduled re-check after a firmware update</small><span class="sp"></span><span class="tag outline amber">5 waiting</span></div><div class="card-b" style="display:grid;gap:10px">
+          <div class="drift" id="drift"></div>
+          <div class="remap" id="remap"></div>
+        </div></div>
+              </div>
+    </section>
+
+
+    <!-- ================= SCREEN 3: ANALYTICS ================= -->
+    <section class="screen" id="s-analytics">
+      <div class="bar"><div><h1>Analytics &amp; Runtime</h1><div class="sub"><span class="mono">inverter-clipping-detect v2.3.1</span> — is it running correctly everywhere?</div></div><span class="sp"></span><span class="chip model">canonical-model v4.12</span><span style="color:var(--muted)">⌕</span><div class="avatar">JO</div></div>
+      <div class="an-top">
+        <div class="an-list"><div class="hd">Analytics<button class="btn primary small">+ Deploy</button></div>
+          <div class="an-it is-on"><b>inverter-clipping-detect <span class="tag blue">GBT</span></b><span class="n">124/126</span><span class="v">v2.3.1</span><span></span><div class="bar-h"><i style="width:98%"></i></div></div>
+          <div class="an-it"><b>yield-forecast-7d <span class="tag blue">LSTM</span></b><span class="n">5/5</span><span class="v">v1.2.0 · per site</span><span></span><div class="bar-h"><i class="green" style="width:100%"></i></div></div>
+          <div class="an-it"><b>perf-degradation-ml <span class="tag blue">RF</span></b><span class="n a">121/126</span><span class="v">v2.0.3</span><span></span><div class="bar-h"><i class="amber" style="width:96%"></i></div></div>
+          <div class="an-it"><b>soiling-loss-detect <span class="tag blue">CNN</span></b><span class="n">5/5</span><span class="v">v1.1.0 · <span style="color:var(--amber)">3.2% loss</span></span><span></span><div class="bar-h"><i class="green" style="width:100%"></i></div></div>
+          <div class="an-it"><b>feeder-imbalance</b><span class="n">14/14</span><span class="v">v3.0.1 · per feeder</span><span></span><div class="bar-h"><i class="green" style="width:100%"></i></div></div>
+          <div class="an-it"><b>dc-arc-precursor</b><span class="n a">0/126</span><span class="v">v0.9.2 · canary</span><span></span><div class="bar-h"><i class="amber" style="width:4%"></i></div></div>
+        </div>
+        <div class="an-mid"><div class="hd">Written once against the model</div>
+          <div class="codebox"><span class="k">inputs:</span> Inverter › AC Power › Phase L1 | L2 | L3 · Inverter › DC Voltage · Inverter › Cabinet Temperature<br><span class="k">scope:</span> all assets of class <b>Inverter / String Inverter</b> &nbsp;&nbsp;<span class="k">window:</span> 5 min tumbling &nbsp;&nbsp;<span class="k">runtime:</span> packet-edge 1.8.0</div>
+          <div style="padding:0 14px 8px;font-size:12px;color:var(--blue);font-weight:500">● No site-specific tag names. Resolved per node at deploy.</div>
+          <div class="hd" style="border-top:1px solid var(--line)">Resolved bindings <small style="font-weight:400;color:var(--muted)">— same canonical input, different raw tag per node</small></div>
+          <table class="tbl compact"><thead><tr><th>Node</th><th>Site</th><th>Canonical input</th><th>Local raw tag</th><th>Status</th></tr></thead><tbody>
+            <tr><td class="raw">pkt-node-014</td><td>Chisholm Ridge</td><td>Inverter › AC Power › Phase L1</td><td><code>INV3_ACPWR_L1</code></td><td><span class="dot"></span> Bound</td></tr>
+            <tr style="background:var(--blue-bg)"><td class="raw">pkt-node-021</td><td>Pecos Flats</td><td style="color:var(--muted)">↑ same canonical</td><td><code>INVT_AC_PWR_PH1</code></td><td><span class="dot"></span> Bound</td></tr>
+            <tr><td class="raw">pkt-node-007</td><td>Big Sandy</td><td style="color:var(--muted)">↑ same canonical</td><td><code>AC_PWR_A</code></td><td><span class="dot"></span> Bound</td></tr>
+            <tr style="color:var(--muted)"><td class="raw">pkt-node-033</td><td>Cedar Bluff</td><td>↑ same canonical</td><td><code class="grey">INV_ACP_L1</code></td><td>Pending offline</td></tr>
+          </tbody></table>
+          <div style="padding:8px 14px"><div class="info">Same canonical path resolves to <code>INV3_ACPWR_L1</code>, <code>INVT_AC_PWR_PH1</code> and <code>AC_PWR_A</code> — no site-specific code in the analytic.</div></div>
+        </div>
+        <div class="an-node"><div class="hd"><span class="mono" style="color:var(--ink);font-weight:600">pkt-node-021</span><span class="mono">packet-edge 1.8.0</span><span class="sp"></span><span style="color:var(--amber);font-size:12px">● Warning</span></div>
+          <div class="eyebrow" style="padding:10px 14px 2px">Containers</div>
+          <div class="cont"><b>inverter-clipping-detect<span>v2.3.1</span></b><span class="tag green">● Running</span><span class="m">CPU 14% &nbsp; Mem 312 MB</span><span></span></div>
+          <div class="cont"><b>feeder-imbalance<span>v3.0.1</span></b><span class="tag green">● Running</span><span class="m">CPU 9% &nbsp; Mem 208 MB</span><span></span></div>
+          <div class="cont warn"><b>dc-arc-precursor<span>v0.9.2</span></b><span class="tag outline amber">● Restarting ×2</span><span class="m" style="color:var(--amber)">CPU 22% &nbsp; Mem 501 MB · isolated</span><span></span></div>
+          <div class="resrow"><span><b>CPU 45%</b></span><span><b>Mem 1.9/4.0 GB</b></span><span><b>Disk 38%</b></span></div>
+          <div class="eyebrow" style="padding:6px 14px 0">Sampling &amp; buffer</div>
+          <div class="sampling"><div class="r"><span>Ingest</span><b>4,120 tags @ 1 Hz</b></div><div class="r"><span>Buffer</span><b>62% · 18 min</b></div></div>
+        </div>
+      </div>
+      <div class="an-tabs" id="an-tabs"><button class="is-on" data-t="ac">⌁ AC Power · today</button><button data-t="fc">⌁ 7-Day Forecast</button><button data-t="pr">⌁ Performance Ratio</button><button data-t="ce">Clipping Events <span class="cnt">3</span></button><span class="sp"></span><span class="meta">inverter-clipping-detect v2.3.1 · GBT · pkt-node-014 · Chisholm Ridge Solar</span><span class="chip sel">All inverters</span></div>
+      <div class="charts" id="charts"></div>
+    </section>
+
+    <!-- ================= SCREEN 4: FLEET ================= -->
+    <section class="screen" id="s-fleet">
+      <div class="bar"><div><h1>Fleet</h1><div class="sub">What is running where, and is it what we intended?</div></div><span class="sp"></span><span class="chip model">canonical-model v4.12</span><span style="color:var(--muted)">⌕</span><div class="avatar">JO</div></div>
+      <div class="fl-top">
+        <div class="fl-stage" id="fl-stage">
+          <svg class="geo" viewBox="0 0 1360 640" preserveAspectRatio="none">
+            <path class="st" d="M470 60 L980 60 L980 180 L470 180 Z"></path>
+            <path class="st st2" d="M400 180 L980 180 L980 250 L570 250 L570 330 L400 330 Z"></path>
+            <path class="st" d="M400 330 L570 330 L570 250 L980 250 L1020 300 L1080 360 L1060 420 L1000 470 L940 560 L870 640 L560 640 L480 560 L400 470 L380 400 Z"></path>
+            <text x="760" y="125">KS</text><text x="700" y="245">OK</text><text x="660" y="470">TX</text>
+            <line x1="520" y1="195" x2="755" y2="243"></line>
+            <line x1="640" y1="340" x2="755" y2="243"></line>
+            <line x1="645" y1="128" x2="755" y2="243" class="off"></line>
+            <line x1="880" y1="300" x2="755" y2="243"></line>
+            <line x1="840" y1="470" x2="755" y2="243"></line>
+          </svg>
+          <div class="node-mk" style="left:532px;top:208px"><i>B</i><span>Big Sandy</span><em class="vt">v4.12</em></div>
+          <div class="node-mk" style="left:614px;top:340px"><i>C</i><span>Chisholm Ridge</span><em class="vt">v4.12</em></div>
+          <div class="node-mk off" style="left:614px;top:122px"><i>C</i><span>Cedar Bluff</span><em class="pend">2 pending</em></div>
+          <div class="node-mk warn" style="left:880px;top:300px"><i>P</i><span>Pecos Flats</span><em class="vt">v4.12</em></div>
+          <div class="node-mk fault" style="left:840px;top:470px"><i>L</i><span>Little River</span><em class="pend">v4.09 · fault</em></div>
+          <div class="hub" style="left:755px;top:243px"><i></i><span>control plane</span></div>
+        </div>
+        <div class="card reg"><div class="card-h">Fleet registry</div><div class="card-b">
+          <div class="chips"><span class="chip">5 sites</span><span class="chip">5 nodes</span><span class="chip">214 assets · 126 inverters</span></div>
+          <div><div class="eyebrow">Node status</div><div class="bar-h" style="margin:8px 0 6px"><i class="green" style="width:40%"></i><i class="amber" style="width:20%"></i><i class="red" style="width:20%"></i><i class="grey" style="width:20%"></i></div><div class="st-row"><span class="h">Healthy 2</span><span class="w">Warning 1</span><span class="f">Fault 1</span><span class="o">Offline 1</span></div></div>
+          <div><div class="eyebrow" style="margin-bottom:8px">Version conformance</div><div class="vc"><span>canonical-model v4.12</span><div class="bar-h"><i style="width:60%"></i></div><span class="n">3 of 5</span><span>packet-edge 1.8.0</span><div class="bar-h"><i style="width:60%"></i></div><span class="n">3 of 5</span></div></div>
+          <div><div class="eyebrow" style="margin-bottom:6px">Nodes</div><div class="card" style="overflow:hidden"><table class="tbl ntbl"><thead><tr><th>Node</th><th>Site</th><th>Status</th><th>Ver.</th></tr></thead><tbody>
+            <tr><td class="raw">pkt-node-007</td><td>Big Sandy</td><td class="s h">Healthy</td><td class="v">v4.12</td></tr>
+            <tr><td class="raw">pkt-node-014</td><td>Chisholm Ridge</td><td class="s h">Healthy</td><td class="v">v4.12</td></tr>
+            <tr class="w"><td class="raw">pkt-node-021</td><td>Pecos Flats</td><td class="s w">Warning</td><td class="v">v4.12</td></tr>
+            <tr class="o"><td class="raw">pkt-node-033</td><td>Cedar Bluff</td><td class="s o">Offline</td><td class="v old">v4.09</td></tr>
+            <tr class="f"><td class="raw">pkt-node-041</td><td>Little River</td><td class="s f">Fault</td><td class="v old">v4.09</td></tr>
+          </tbody></table></div></div>
+          <div><div class="eyebrow" style="margin-bottom:6px">Open drift flags <span style="color:var(--ink)">3</span></div><div style="display:grid;gap:5px"><div class="flag"><b>!</b><span class="mono">pkt-node-041</span> — cert expires in 6 d</div><div class="flag"><b>!</b><span class="mono">pkt-node-021</span> — analytic version behind</div><div class="flag"><b>!</b><span class="mono">pkt-node-033</span> — config v9 vs intended v11</div></div></div>
+        </div></div>
+        <div class="card roll"><div class="card-h"><div>Rollout<div style="font-weight:400;font-size:11px;color:var(--muted)">canonical-model v4.12 + inverter-clipping-detect v2.3.1</div></div></div><div class="card-b" id="roll-body"></div></div>
+      </div>
+      <div class="fl-bottom">
+        <div class="fl-tabs"><button class="is-on">Change record</button><button>Nodes</button></div>
+        <div class="fl-grid">
+          <div>
+            <div class="cr-h"><b>CR-2291</b><span>Author J. Okafor</span><span>Requested 08:40 CDT</span></div>
+            <div class="eyebrow" style="margin-top:10px;color:var(--green)">Approvals 2 of 2 required</div>
+            <div class="apr"><span class="ck">✓</span><span class="role">OT Lead</span><span>M. Reyes</span><span class="sp"></span><span class="t">09:02 CDT</span></div>
+            <div class="apr"><span class="ck">✓</span><span class="role">Cyber</span><span>A. Duarte</span><span class="sp"></span><span class="t">09:15 CDT</span></div>
+            <div class="note" style="margin-top:6px">Site Criticality Tier 2 — 2 of 2 approvals complete</div>
+            <div class="eyebrow" style="margin-top:10px">Diff — 3 objects changed</div>
+            <div class="difflist" style="margin-top:6px"><div><span class="p">+</span> <span class="f">canonical-model/templates/inverter-string.yaml</span> (1 template)</div><div><span class="m">~</span> <span class="f">canonical-model/bindings/pkt-node-007.json</span> (1 binding)</div><div><span class="m">~</span> <span class="f">analytics/inverter-clipping-detect/version.json</span> (1 analytic)</div></div>
+          </div>
+          <div>
+            <div class="eyebrow">Audit — changes since 00:00 CDT</div>
+            <div class="audit" id="fl-audit"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <footer class="foot"><span>Prototype · simulated data</span><span id="foot-r">Packet · V2</span></footer>
+  </div>
+</div>
+<!--GUIDED-->
+<div class="toast" id="toast"></div>
+<script>
+const $=(s,el=document)=>el.querySelector(s), $$=(s,el=document)=>[...el.querySelectorAll(s)];
+const toast=(m)=>{const t=$('#toast');t.textContent=m;t.classList.add('is-on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('is-on'),2800);};
+const SCREENS=()=>$$('.rail [data-s]').map(b=>b.dataset.s);
+const onShow={};
+function show(id){ $$('.rail [data-s]').forEach(x=>x.classList.toggle('is-active',x.dataset.s===id)); $$('.screen').forEach(s=>s.classList.toggle('is-on',s.id==='s-'+id)); try{history.replaceState(null,'','#'+id);}catch(e){} if(onShow[id]) onShow[id](); document.dispatchEvent(new CustomEvent('screen',{detail:id})); }
+$$('.rail [data-s]').forEach(b=>b.addEventListener('click',()=>show(b.dataset.s)));
+document.addEventListener('keydown',e=>{ if(e.target.matches('input,select')) return; const ids=SCREENS(); const cur=ids.findIndex(i=>$('#s-'+i).classList.contains('is-on')); if(e.key==='ArrowRight'&&cur<ids.length-1) show(ids[cur+1]); if(e.key==='ArrowLeft'&&cur>0) show(ids[cur-1]); });
+
+/* ---------- Screen 1: Map canvas ---------- */
+const TAGS=[
+ {id:'INV3_ACPWR_L1',cls:'hi',canon:'Phase L1',cmeta:'kW · Measurement',src:0,asset:'inv3',unit:'kW',role:'Measurement',klass:'Inverter / String Inverter',obj:['Feeder 2','Inverter 3','AC Power','Phase L1'],conf:'98%',why:[['Vendor doc','Vendor A 3.1 MW manual, table 6.2','0.52',1],['Prior site','Pecos Flats, 34 matching tags','0.31',0],['Data stats','0–3,140 kW, 1 Hz, diurnal profile','0.15',0]],addr:'HR40012',live:'2,884',lu:'kW',who:'J. Okafor<br>accepted<br>14:12 CDT'},
+ {id:'INV3_ACPWR_L2',cls:'hi',canon:'Phase L2',cmeta:'kW',src:0,asset:'inv3',unit:'kW',role:'Measurement',klass:'Inverter / String Inverter',obj:['Feeder 2','Inverter 3','AC Power','Phase L2'],conf:'97%',why:[['Vendor doc','Vendor A 3.1 MW manual, table 6.2','0.52',1],['Prior site','Pecos Flats, 34 matching tags','0.31',0],['Data stats','0–3,120 kW, 1 Hz, diurnal profile','0.15',0]],addr:'HR40014',live:'2,871',lu:'kW',who:'J. Okafor<br>accepted<br>14:12 CDT'},
+ {id:'INV3_DCV',cls:'hi',canon:'DC Voltage',cmeta:'V · 96% · prior site',src:0,asset:'inv3',unit:'V',role:'Measurement',klass:'Inverter / String Inverter',obj:['Feeder 2','Inverter 3','DC Bus','Voltage'],conf:'96%',why:[['Prior site','Pecos Flats, 34 matching tags','0.48',1],['Vendor doc','Vendor A 3.1 MW manual, table 6.1','0.36',0],['Data stats','820–1,480 V, 1 Hz','0.16',0]],addr:'HR40032',live:'1,187',lu:'V',who:'J. Okafor<br>accepted<br>14:13 CDT'},
+ {id:'INV3_DCI',cls:'hi',canon:'DC Current',cmeta:'A · 94%',src:0,asset:'inv3',unit:'A',role:'Measurement',klass:'Inverter / String Inverter',obj:['Feeder 2','Inverter 3','DC Bus','Current'],conf:'94%',why:[['Vendor doc','Vendor A 3.1 MW manual, table 6.1','0.50',1],['Data stats','0–2,410 A, tracks DC power','0.30',0],['Prior site','Pecos Flats, 34 matching tags','0.20',0]],addr:'HR40034',live:'2,318',lu:'A',who:'J. Okafor<br>accepted<br>14:13 CDT'},
+ {id:'TMP_CAB_03',cls:'md',canon:'Cabinet Temperature',cmeta:'°C · 88% · data stats',src:0,asset:'inv3',unit:'°C',role:'Measurement',klass:'Inverter / String Inverter',obj:['Feeder 2','Inverter 3','Enclosure','Cabinet Temperature'],conf:'88%',why:[['Data stats','22–61 °C, lags irradiance by 40 min','0.55',1],['Prior site','Big Sandy, 12 matching tags','0.30',0],['Vendor doc','No register match in manual','0.15',0]],addr:'HR40090',live:'47.2',lu:'°C',who:'pending<br>review'},
+ {id:'AI_0042',cls:'corr',canon:'Phase L1',cmeta:'61% · in review',src:1,asset:'inv4',edit:true,unit:'kW',role:'Measurement',klass:'Inverter / String Inverter',obj:['Feeder 2','Inverter 4','AC Power','Phase L1'],conf:'61%',why:[['Data stats','0–3,090 kW, diurnal profile','0.40',1],['Prior site','No match at other sites','0.11',0],['Vendor doc','Opaque OPC node, no register','0.10',0]],addr:'ns=2;i=42',live:'2,790',lu:'kW',who:'in<br>correction'},
+ {id:'INV4_DCV',cls:'md',canon:'DC Voltage',cmeta:'V · 89%',src:1,asset:'inv4',unit:'V',role:'Measurement',klass:'Inverter / String Inverter',obj:['Feeder 2','Inverter 4','DC Bus','Voltage'],conf:'89%',why:[['Prior site','Pecos Flats, 34 matching tags','0.46',1],['Data stats','830–1,470 V, 1 Hz','0.28',0],['Vendor doc','Name pattern only','0.15',0]],addr:'ns=2;s=INV4_DCV',live:'1,192',lu:'V',who:'pending<br>review'},
+ {id:'MET_GHI',cls:'hi',canon:'GHI — Horizontal',cmeta:'W/m² · 91%',src:2,asset:'met',unit:'W/m²',role:'Measurement',klass:'Met Station',obj:['Chisholm Ridge Solar','Met Station','Irradiance','GHI — Horizontal'],conf:'91%',why:[['Data stats','0–1,040 W/m², clear-sky envelope','0.52',1],['Prior site','Big Sandy, 6 matching tags','0.30',0],['Vendor doc','Pyranometer datasheet','0.09',0]],addr:'AI 3',live:'742',lu:'W/m²',who:'J. Okafor<br>accepted<br>14:11 CDT'},
+ {id:'MET_WIND_3M',cls:'md',canon:'Wind Speed · 3m AGL',cmeta:'m/s · 85% · data stats',src:2,asset:'met',unit:'m/s',role:'Measurement',klass:'Met Station',obj:['Chisholm Ridge Solar','Met Station','Wind','Wind Speed · 3m AGL'],conf:'85%',why:[['Data stats','0–14 m/s, gusty, no diurnal shape','0.58',1],['Prior site','No 3 m sensor elsewhere','0.17',0],['Vendor doc','Anemometer datasheet','0.10',0]],addr:'AI 7',live:'4.6',lu:'m/s',who:'pending<br>review'},
+ {id:'SPARE_17',cls:'un',canon:null,src:2,asset:null,unit:'—',role:'Unknown',klass:'—',obj:['Unresolved'],conf:'22%',why:[['Data stats','Constant 0, no variance','0.12',1],['Prior site','No match','0.06',0],['Vendor doc','No match','0.04',0]],addr:'AI 17',live:'0',lu:'',who:'queued<br>for review'}
+];
+const SRCS=[{t:'Modbus TCP',m:'10.4.22.31:502<br>1,744 tags · read-only'},{t:'OPC-UA',m:'10.4.22.50:4840 · 196 tags'},{t:'DNP3 / S7',m:'10.4.22.6x · 44 tags<br>partial coverage'}];
+const ASSETS={inv3:{row:1.6,t:'Inverter 3',s:'String Inverter',cls:'',x:528},feeder:{row:3.4,t:'Feeder 2',s:'Chisholm Ridge Solar',cls:'grey',x:440},inv4:{row:5.6,t:'Inverter 4',s:'in review',cls:'md',x:528},met:{row:7.8,t:'Met Station',s:'',cls:'',x:528}};
+let selTag=TAGS[0], view='raw', zoom=1;
+const LAYOUT={rowH:50,top:118,W:930};
+const layoutH=()=>LAYOUT.top+TAGS.length*LAYOUT.rowH+100;
+const fitScale=()=>{ const c=$('#canvas'); const w=c.clientWidth||930, h=c.clientHeight||800; return Math.min(1, w/LAYOUT.W, h/layoutH()); };
+function drawMap(){
+  const c=$('#canvas'); const X1=12,X2=195,PW=176,X3=715,rowH=LAYOUT.rowH,top=LAYOUT.top; const ry=i=>top+i*rowH;
+  TAGS.forEach((t,i)=>t.y=ry(i));
+  let paths='',html='';
+  html+=`<div class="colhead" style="left:${X1+40}px;top:${top-50}px;width:140px;text-align:center">Sources</div><div class="colhead" style="left:${X2}px;top:${top-50}px;width:${PW}px;text-align:center">Raw tags</div><div class="colhead" style="left:430px;top:${top-50}px;width:400px;text-align:center">Canonical model — Chisholm Ridge Solar</div>`;
+  SRCS.forEach((s,i)=>{ const rows=TAGS.filter(t=>t.src===i); if(!rows.length) return; const yc=(rows[0].y+rows[rows.length-1].y)/2+15; s.y=yc-22; html+=`<div class="src" style="left:${X1}px;top:${s.y}px"><b>${s.t}</b><span>${s.m}</span></div>`; rows.forEach(t=>{ const y1=yc,y2=t.y+15; paths+=`<path class="src" d="M${X1+140} ${y1} C ${X1+170} ${y1}, ${X2-30} ${y2}, ${X2} ${y2}"/>`; }); });
+  const A=ASSETS; Object.values(A).forEach(a=>a.y=ry(a.row));
+  const link=(a,b)=>`<path class="asset" d="M${a.x} ${a.y+7} C ${a.x} ${(a.y+b.y)/2}, ${b.x} ${(a.y+b.y)/2}, ${b.x} ${b.y+7}"/>`;
+  Object.keys(A).forEach(k=>{ if(k!=='feeder'&&A[k].parent!==null) paths+=link(A.feeder,A[k]); });
+  TAGS.forEach(t=>{ if(!t.asset) return; const a=A[t.asset]; const y2=t.y+15; paths+=`<path class="asset" d="M${a.x} ${a.y+7} C ${a.x+60} ${a.y+7}, ${X3-40} ${y2}, ${X3+5} ${y2}"/>`; });
+  TAGS.forEach(t=>{ const y=t.y+15; const sel=t===selTag; if (t.canon){ paths+=`<path class="${t.cls} ${sel?'sel':''}" d="M${X2+PW} ${y} C ${X2+PW+80} ${y}, ${X3-80} ${y}, ${X3+4} ${y}" ${t.cls==='hi'&&sel?'marker-end="url(#arr)"':''}/>`; } else { paths+=`<path class="un" d="M${X2+PW} ${y} C ${X2+PW+30} ${y}, ${430-30} ${y+10}, 432 ${y+10}"/>`; }
+    const label=view==='canon'&&t.canon?t.canon:t.id;
+    html+=`<div class="pill ${t.cls} ${sel?'sel':''}" data-id="${t.id}" style="left:${X2}px;top:${t.y}px"><i></i>${label}${t.edit?'<span class="edit">edit</span>':''}</div>`;
+    if (t.canon) html+=`<div class="canon ${t.cls} ${sel?'sel':''}" style="left:${X3}px;top:${t.y+3}px"><b>${t.canon}</b><span>${t.cmeta}</span></div>`;
+    else html+=`<div class="unres" style="left:432px;top:${t.y+4}px"><i>?</i><div>Unresolved — queued for review<small>22% confidence</small></div></div>`;
+  });
+  html+=`<div class="canon un" style="left:${X3}px;top:${top-26}px;opacity:.75"><b style="font-size:10.5px">Phase L3 (unmapped)</b></div>`;
+  Object.values(A).forEach(a=>{ html+=`<div class="anode ${a.cls}" style="left:${a.x}px;top:${a.y}px"><i></i><b>${a.t}</b><span>${a.s}</span></div>`; });
+  const s=zoom*fitScale();
+  c.innerHTML=`<svg><defs><marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z"/></marker></defs><g style="transform:scale(${s});transform-origin:0 0">${paths}</g></svg><div style="position:absolute;inset:0;transform:scale(${s});transform-origin:0 0">${html}</div>
+  <div class="canvas-foot"><span class="lk"><i></i>High confidence ≥95%</span><span class="lk md"><i></i>Needs review 80–94%</span><span class="lk corr"><i></i>In correction &lt;80%</span><span class="lk un"><i></i>Unresolved</span><span class="sp"></span><span class="chip model">canonical-model v4.12</span><button class="btn primary small" id="acc-hi">Accept high-conf.</button></div>`;
+  $$('.pill',c).forEach(p=>p.addEventListener('click',()=>{ selTag=TAGS.find(t=>t.id===p.dataset.id); drawMap(); drawInsp(); }));
+  $('#acc-hi').addEventListener('click',()=>{ $('#m-mapped').textContent='1,901 mapped'; $('#m-unmapped').textContent='83 unmapped'; toast('329 high-confidence tags accepted · 83 remain for review'); });
+}
+function inspExtra(t){ return ''; }
+function drawInsp(){
+  const t=selTag; $('#insp-tag').textContent=t.id;
+  const icons=['<rect x="3" y="5" width="18" height="14" rx="2"/>','<rect x="4" y="4" width="16" height="16" rx="2"/>','<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>','<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>'];
+  const vals=Array.from({length:40},(_,i)=>2400+i*12+Math.sin(i/3)*40);
+  const pts=vals.map((v,i)=>`${(i/39*100).toFixed(1)},${(60-(v-2300)/900*50).toFixed(1)}`).join(' ');
+  $('#insp').innerHTML=`
+    <div><div class="eyebrow" style="margin-bottom:8px">Canonical object</div><div class="otree">${t.obj.map((o,i)=>`<div class="${i===t.obj.length-1?'leaf':''}" style="padding-left:${i*22}px">${i?'<span class="ln"></span>':''}<i><svg viewBox="0 0 24 24">${icons[i]||icons[0]}</svg></i>${o}</div>`).join('')}</div></div>
+    <div class="boxes"><div><span class="eyebrow">Unit</span><b>${t.unit}${t.scale?` <small style="font-weight:400;color:var(--muted)">· ${t.scale}</small>`:''}</b></div><div><span class="eyebrow">Role</span><b>${t.role}</b></div><div class="full"><span class="eyebrow">Class</span><b>${t.klass}</b></div></div>
+    <div><div class="eyebrow" style="margin-bottom:8px">Why this proposal</div><div class="why">${t.why.map(w=>`<div class="${w[3]?'top':''}"><div class="wh"><span class="tag outline ${w[3]?'blue':''}">${w[0]}</span><span class="sp"></span><span class="w">weight ${w[2]}</span></div><p>${w[1]}</p></div>`).join('')}</div></div>
+    ${inspExtra(t)}
+    <div><div class="eyebrow" style="margin-bottom:10px">Lineage</div><div class="lineage"><div><i>M</i><span class="m">${t.id}</span></div><div><i>⇄</i><span>${SRCS[t.src].t.split(' /')[0]}<br>${SRCS[t.src].m.split('<br>')[0].split(' ·')[0]}<br><span class="m">${t.addr}</span></span></div><div><i>☺</i><span>${t.who}</span></div><div><i>⊘</i><span class="m">model<br>v4.12</span></div></div></div>
+    <div><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><span class="eyebrow">Live value</span><span class="note">last 60 min</span></div><div class="live-chart"><svg viewBox="0 0 100 60" preserveAspectRatio="none"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2563EB" stop-opacity=".22"/><stop offset="1" stop-color="#2563EB" stop-opacity="0"/></linearGradient></defs><polygon points="0,60 ${pts} 100,60" fill="url(#lg)"/><polyline points="${pts}" fill="none" stroke="#2563EB" stroke-width="1.2" vector-effect="non-scaling-stroke"/></svg></div>
+      <div class="bignum" style="margin-top:8px"><b>${t.live}</b><span>${t.lu}</span><span class="lv"><span class="dot"></span>Live</span></div></div>
+    <div style="display:flex;gap:8px"><button class="btn primary" data-a="accept">Accept</button><button class="btn" data-a="correct">Correct</button><button class="btn" data-a="queue">Queue</button></div>`;
+  $$('#insp [data-a]').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.a==='accept'){ t.cls='hi'; t.edit=false; t.who='J. Okafor<br>accepted<br>now'; if(t.cmeta) t.cmeta=t.cmeta.replace(/\d+% · in review|data stats|prior site/,'accepted'); drawMap(); drawInsp(); toast(`${t.id} accepted → ${t.obj.join(' › ')}`); } else if (b.dataset.a==='queue'){ toast(`${t.id} queued for review`); } else { toast('Correction mode: pick a canonical object in the tree, or drag the wire to another node'); } }));
+}
+$$('#rosetta button').forEach(b=>b.addEventListener('click',()=>{ view=b.dataset.v; $$('#rosetta button').forEach(x=>x.classList.toggle('is-on',x===b)); drawMap(); }));
+$('#zoom-in').addEventListener('click',()=>{zoom=Math.min(1.4,zoom+0.1);drawMap();}); $('#zoom-out').addEventListener('click',()=>{zoom=Math.max(.7,zoom-0.1);drawMap();}); $('#zoom-reset').addEventListener('click',()=>{zoom=1;drawMap();});
+onShow.map=()=>{ drawMap(); };
+drawMap(); drawInsp();
+function fitStage(){ const st=$('#fl-stage'); if(!st) return; const top=$('.fl-top'); const w=top.clientWidth, h=top.clientHeight; if(!w||!h) return; const s=Math.min(1,w/1360,h/640); st.style.transform=`scale(${s})`; st.style.left=((w-1360*s)/2)+'px'; st.style.top=((h-640*s)/2)+'px'; }
+onShow.fleet=()=>fitStage();
+window.addEventListener('resize',()=>{ drawMap(); fitStage(); },{passive:true});
+
+/* ---------- Screen 2: Needs review ---------- */
+const NR=[
+ {raw:'S7_DB10_TEMP_A',path:['Transformer','Winding Temp A'],unit:'°C',conf:87,prov:'Prior site',f:'s7'},
+ {raw:'S7_DB10_TEMP_B',path:['Transformer','Winding Temp B'],unit:'°C',conf:86,prov:'Prior site',f:'s7'},
+ {raw:'S7_CB_STAT_007',path:['LV Switchgear','Circuit Breaker 7','Status'],unit:'—',conf:81,prov:'Vendor doc',f:'s7',edit:true},
+ {raw:'OPC_MET_WS003',path:['Met Station','Wind Speed'],unit:'m/s',conf:88,prov:'Data stats',f:'opc'},
+ {raw:'OPC_MET_IRRAD',path:['Met Station','Global Irradiance'],unit:'W/m²',conf:83,prov:'Data stats',f:'opc'},
+ {raw:'S7_DB14_PR_48',path:['Inverter 48','Performance Ratio'],unit:'%',conf:82,prov:'Prior site',f:'s7'},
+ {raw:'S7_SPARE_DB42',path:null,unit:'—',conf:31,prov:'Data stats',f:'s7'},
+ {raw:'S7_DB22_GFREQ',path:['Grid','Frequency'],unit:'Hz',conf:91,prov:'Prior site',f:'s7'},
+ {raw:'S7_DB11_OIL_T',path:['Transformer','Oil Temperature'],unit:'°C',conf:84,prov:'Prior site',f:'s7'},
+ {raw:'S7_CB_STAT_012',path:['LV Switchgear','Circuit Breaker 12','Status'],unit:'—',conf:80,prov:'Vendor doc',f:'s7'},
+ {raw:'OPC_PPC_PLIM',path:['Plant Controller','Active Power Limit'],unit:'kW',conf:86,prov:'Data stats',f:'opc'},
+ {raw:'S7_DB30_TAP',path:['Transformer','Tap Position'],unit:'pos',conf:83,prov:'Prior site',f:'s7'}
+];
+let nrFilter='all', cbChoice='Circuit Breaker 7', accepted1116=false, nrAccepted=0;
+function drawNR(){
+  const tb=$('#nr-rows'); const rows=NR.filter(r=>nrFilter==='all'||r.f===nrFilter);
+  tb.innerHTML=rows.map((r,i)=>{ const done=r.done; return `<tr class="${r.anim?'nr-in':''}" style="${done?'opacity:.5':''}"><td class="raw">${r.raw}</td><td>${r.path?(r.edit?`<div class="path">LV Switchgear › <span class="sel"><button data-dd>${cbChoice} ⌄</button><div class="dd" id="dd"><button data-cb="Circuit Breaker 6">CB 6</button><button data-cb="Circuit Breaker 7" class="is-on">CB 7 <span>✓</span></button><button data-cb="Circuit Breaker 8">CB 8</button></div></span> › Status</div>`:r.path.join(' › ')):'<span style="color:var(--muted);font-style:italic">— unresolved —</span>'}</td><td>${r.unit}</td><td><span class="conf ${r.conf<80?'grey':''}"><i style="--c:${r.conf}%"></i>${r.conf}%</span></td><td><span class="tag outline ${r.prov==='Vendor doc'?'blue':''}">${r.prov}</span></td><td style="white-space:nowrap">${done?'<span class="tag green">Accepted</span>':r.path?(r.edit?`<button class="btn small primary" data-save="${r.raw}">Save</button> <button class="btn small">Cancel</button>`:`<button class="btn small outline-blue" data-acc="${r.raw}">Accept</button> <button class="btn small" data-corr="${r.raw}">Correct</button>`):'<button class="btn small">Queue for review</button>'}</td></tr>`; }).join('');
+  $('#nr-count').textContent=`${64-nrAccepted} tags`;
+  const dd=$('#dd'); $('[data-dd]')?.addEventListener('click',e=>{e.stopPropagation(); dd.classList.toggle('is-open');});
+  $$('#dd [data-cb]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); cbChoice=b.dataset.cb; $$('#dd button').forEach(x=>{x.classList.toggle('is-on',x===b); x.innerHTML=x.dataset.cb.replace('Circuit Breaker ','CB ')+(x===b?' <span>✓</span>':'');}); dd.classList.remove('is-open'); $('[data-dd]').textContent=cbChoice+' ⌄'; }));
+  $$('[data-save]').forEach(b=>b.addEventListener('click',()=>{ const r=NR.find(x=>x.raw===b.dataset.save); r.edit=false; r.path=['LV Switchgear',cbChoice,'Status']; r.done=true; nrAccepted++; updateFoot(); drawNR(); toast(`${r.raw} → LV Switchgear › ${cbChoice} › Status saved`); }));
+  $$('[data-acc]').forEach(b=>b.addEventListener('click',()=>{ const r=NR.find(x=>x.raw===b.dataset.acc); r.done=true; nrAccepted++; updateFoot(); drawNR(); }));
+  $$('[data-corr]').forEach(b=>b.addEventListener('click',()=>toast('Correction: choose a different canonical path for '+b.dataset.corr)));
+}
+document.addEventListener('click',()=>$('#dd')?.classList.remove('is-open'));
+$$('#nr-filter button').forEach(b=>b.addEventListener('click',()=>{ nrFilter=b.dataset.f; $$('#nr-filter button').forEach(x=>x.classList.toggle('is-on',x===b)); drawNR(); }));
+function updateFoot(){ $('#f-acc').textContent=(1116+nrAccepted).toLocaleString(); $('#f-wait').textContent=64-nrAccepted; $('#f-rem').textContent=64-nrAccepted; $('#side-review').textContent=64-nrAccepted; $('#side-dec').textContent=nrAccepted; }
+$('#accept-1116').addEventListener('click',()=>{ if(accepted1116) return; accepted1116=true; $('#accept-1116').textContent='1,116 high-confidence tags accepted ✓'; $('#accept-1116').disabled=true; $('#accept-note').textContent='131 remain for manual review · step 4 unlocks after review'; toast('1,116 tags accepted. 131 remain for manual review.'); });
+$('#review-rest').addEventListener('click',()=>toast('Opens the review queue, one tag at a time.'));
+drawNR();
+let secs=632, sideSecs=346; setInterval(()=>{ secs++; sideSecs++; const f=n=>`${Math.floor(n/60)}m ${String(n%60).padStart(2,'0')}s`; $('#elapsed').textContent=f(secs); $('#side-elapsed').textContent=f(sideSecs); $('#est-elapsed').textContent=f(sideSecs); },1000);
+
+/* ---------- Screen 3: charts ---------- */
+const chartCard=(title,sub,legend,svg)=>`<div class="card chart-card"><div class="card-h"><div class="ct"><span>${title}</span><small>${sub}</small></div><span class="lg">${legend}</span></div><div class="card-b">${svg}</div></div>`;
+function acChart(){
+  const W=640,H=300,L=56,R=16,T=22,B=36; const x=h=>L+(h-4)/16*(W-L-R); const y=v=>T+(1-v/3600)*(H-T-B);
+  const pts=[]; for(let h=4;h<=20;h+=0.25){ let v=0; if(h>6&&h<19){ v=3100*Math.pow(Math.max(0,Math.sin((h-6)/13*Math.PI)),1.3); } if(v>3000)v=3000+Math.min(100,(v-3000)*.3); pts.push([h,Math.min(v,3100)]); }
+  const path=pts.map((p,i)=>(i?'L':'M')+x(p[0]).toFixed(1)+' '+y(p[1]).toFixed(1)).join(' ');
+  const now=16.73, nowv=2884;
+  const svg=`<svg viewBox="0 0 ${W} ${H}"><defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2563EB" stop-opacity=".25"/><stop offset="1" stop-color="#2563EB" stop-opacity="0"/></linearGradient></defs>
+  ${[400,1200,2200,3000,3500].map(v=>`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-8}" y="${y(v)+3}" text-anchor="end">${v.toLocaleString()}</text>`).join('')}
+  <rect class="win" x="${x(12)}" y="${T}" width="${x(13.5)-x(12)}" height="${H-T-B}"/><text x="${(x(12)+x(13.5))/2}" y="${T+14}" text-anchor="middle" style="fill:var(--amber);font-weight:600">Clipping</text><text x="${(x(12)+x(13.5))/2}" y="${T+26}" text-anchor="middle" style="fill:var(--amber)">12:00–13:30</text>
+  <line class="rate" x1="${L}" x2="${W-R}" y1="${y(3100)}" y2="${y(3100)}"/><text x="${L+4}" y="${y(3100)-5}" style="fill:var(--amber)">3,100 kW</text>
+  <path class="area" d="${path} L${x(now)} ${y(0)} L${x(4)} ${y(0)} Z"/><path class="ln" d="${path}"/>
+  ${[12.2,12.75,13.3].map(h=>`<circle class="pt" cx="${x(h)}" cy="${y(3000)}" r="3.5"/>`).join('')}
+  <line class="now" x1="${x(now)}" x2="${x(now)}" y1="${T}" y2="${H-B}"/><rect x="${x(now)-20}" y="${T-14}" width="40" height="16" rx="3" style="fill:#374151"/><text class="lbl" x="${x(now)}" y="${T-2.5}" text-anchor="middle">16:44</text>
+  <circle class="ptb" cx="${x(now)}" cy="${y(nowv)}" r="5"/><rect x="${x(now)+10}" y="${y(nowv)-10}" width="62" height="18" rx="3" fill="#2563EB"/><text class="lbl" x="${x(now)+41}" y="${y(nowv)+3}" text-anchor="middle">2,884 kW</text>
+  <rect class="cal" x="${L+6}" y="${T+12}" width="92" height="30" rx="4"/><text class="caltext" x="${L+14}" y="${T+24}">Today (partial)</text><text x="${L+14}" y="${T+37}" style="fill:var(--blue);font-weight:600;font-size:11px">97.4 MWh</text>
+  ${[4,6,8,10,12,14,16,18,20].map(h=>`<text x="${x(h)}" y="${H-B+16}" text-anchor="middle">${h===16?'':String(h).padStart(2,'0')+':00'}</text>`).join('')}<text x="${x(now)}" y="${H-B+16}" text-anchor="middle" style="fill:var(--ink);font-weight:600">now</text>
+  <text x="14" y="${(T+H-B)/2}" transform="rotate(-90 14 ${(T+H-B)/2})" text-anchor="middle">kW</text></svg>`;
+  return chartCard('Inverter AC Power — pkt-node-014 · today','Σ all strings, 1-min avg','<span><i></i>AC output</span><span><i class="amber"></i>AC rating (3,100 kW)</span><span><i class="win"></i>Clipping window</span>',svg);
+}
+function fcChart(){
+  const W=640,H=300,L=50,R=44,T=22,B=36; const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']; const x=i=>L+i/6*(W-L-R); const y=v=>T+(1-(v-30)/190)*(H-T-B);
+  const act=[142,156,131,97], fc=[97,158,171,168];
+  const sm=(arr,off)=>{ let d=''; arr.forEach((v,i)=>{ const X=x(i+off),Y=y(v); if(!i) d=`M${X} ${Y}`; else { const px=x(i-1+off), py=y(arr[i-1]); d+=` C ${(px+X)/2} ${py}, ${(px+X)/2} ${Y}, ${X} ${Y}`; } }); return d; };
+  const band=`M${x(3)} ${y(97)} L${x(4)} ${y(176)} L${x(5)} ${y(189)} L${x(6)} ${y(186)} L${x(6)} ${y(150)} L${x(5)} ${y(153)} L${x(4)} ${y(140)} Z`;
+  const svg=`<svg viewBox="0 0 ${W} ${H}"><defs><linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2563EB" stop-opacity=".25"/><stop offset="1" stop-color="#2563EB" stop-opacity="0"/></linearGradient></defs>${[50,100,150,200].map(v=>`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-8}" y="${y(v)+3}" text-anchor="end">${v}</text>`).join('')}
+  <rect x="${x(3)}" y="${T}" width="${x(6)-x(3)}" height="${H-T-B}" fill="#F3F4F6" opacity=".6"/><line class="now" x1="${x(3)}" x2="${x(3)}" y1="${T}" y2="${H-B}"/><text x="${x(3)+10}" y="${T+14}" style="fill:var(--muted)">Forecast →</text>
+  <path class="band" d="${band}"/>
+  <path d="${sm(act,0)} L${x(3)} ${y(30)} L${x(0)} ${y(30)} Z" style="fill:url(#g2)"/><path class="ln" d="${sm(act,0)}"/><path class="ln dash" d="${sm(fc,3)}"/>
+  ${act.map((v,i)=>`<circle class="ptb" cx="${x(i)}" cy="${y(v)}" r="4"/><rect x="${x(i)-22}" y="${y(v)-24}" width="44" height="15" rx="3" fill="#2563EB"/><text class="lbl" x="${x(i)}" y="${y(v)-13}" text-anchor="middle">${v} MWh</text>`).join('')}
+  ${fc.slice(1).map((v,i)=>`<line x1="${x(i+4)}" x2="${x(i+4)}" y1="${y(v-18)}" y2="${y(v+18)}" stroke="#2563EB" stroke-width="1"/><circle class="ptb" cx="${x(i+4)}" cy="${y(v)}" r="3.5"/><text x="${x(i+4)+8}" y="${y(v)-6}">${v}</text>`).join('')}
+  <rect class="cal" x="${L+8}" y="${T+8}" width="126" height="42" rx="4"/><text class="caltext" x="${L+16}" y="${T+21}">LSTM · 3-yr training · 8 sites</text><text class="caltext" x="${L+16}" y="${T+33}">RMSE 9.2 MWh · MAE 7.1 MWh</text><text class="caltext" x="${L+16}" y="${T+45}" style="font-weight:600">R² = 0.94</text>
+  ${days.map((d,i)=>`<text x="${x(i)}" y="${H-B+16}" text-anchor="middle" style="${i===3?'fill:var(--ink);font-weight:600':i>3?'fill:var(--blue)':''}">${d}</text>${i===3?`<text x="${x(i)}" y="${H-B+27}" text-anchor="middle">(today)</text>`:''}`).join('')}
+  <text x="12" y="${(T+H-B)/2}" transform="rotate(-90 12 ${(T+H-B)/2})" text-anchor="middle">MWh</text></svg>`;
+  return chartCard('7-Day Yield Forecast — yield-forecast-7d v1.2.0','LSTM · Chisholm Ridge Solar','<span><i></i>Actual</span><span><i class="dash"></i>Forecast</span><span><i class="band"></i>90% CI (±18 MWh)</span>',svg);
+}
+function prChart(){ const W=640,H=300,L=50,R=16,T=22,B=36; const vals=[97.1,96.4,95.8,97.3,96.9,94.2,96.1,97.0,95.5,96.8,97.2,93.9]; const x=i=>L+i*(W-L-R)/12+8, bw=(W-L-R)/12-16; const y=v=>T+(1-(v-90)/10)*(H-T-B); const svg=`<svg viewBox="0 0 ${W} ${H}">${[90,92,94,96,98,100].map(v=>`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-8}" y="${y(v)+3}" text-anchor="end">${v}</text>`).join('')}${vals.map((v,i)=>`<rect x="${x(i)}" y="${y(v)}" width="${bw}" height="${y(90)-y(v)}" rx="2" fill="${v<95?'#B45309':'#2563EB'}"/><text x="${x(i)+bw/2}" y="${H-B+16}" text-anchor="middle">inv${String(i+1).padStart(2,'0')}</text>`).join('')}<line class="rate" x1="${L}" x2="${W-R}" y1="${y(96.4)}" y2="${y(96.4)}"/><text x="${W-R}" y="${y(96.4)-5}" text-anchor="end" style="fill:var(--amber)">fleet median 96.4%</text><text x="12" y="${(T+H-B)/2}" transform="rotate(-90 12 ${(T+H-B)/2})" text-anchor="middle">PR %</text></svg>`; return chartCard('Performance Ratio by inverter — yesterday','perf-degradation-ml v2.0.3 · first 12 of 48','<span><i></i>PR ≥ 95%</span><span><i class="amber"></i>PR &lt; 95%</span>',svg); }
+function ceTable(){ return `<div class="card chart-card"><div class="card-h"><div class="ct"><span>Clipping events — last 7 days</span><small>inverter-clipping-detect v2.3.1 · Chisholm Ridge Solar</small></div><span class="lg"><span class="tag amber">3 today</span></span></div><div class="card-b" style="padding:0"><table class="tbl compact"><thead><tr><th>Date</th><th>Window</th><th>Inverters</th><th>Energy clipped</th><th>Flag</th></tr></thead><tbody><tr><td>Thu (today)</td><td class="raw">12:00–13:30</td><td>24 of 48</td><td>4.1 MWh</td><td><span class="tag amber">open</span></td></tr><tr><td>Thu (today)</td><td class="raw">13:40–13:55</td><td>9 of 48</td><td>0.6 MWh</td><td><span class="tag amber">open</span></td></tr><tr><td>Thu (today)</td><td class="raw">14:10–14:20</td><td>4 of 48</td><td>0.2 MWh</td><td><span class="tag amber">open</span></td></tr><tr><td>Wed</td><td class="raw">11:50–13:10</td><td>22 of 48</td><td>3.6 MWh</td><td><span class="tag">reviewed</span></td></tr><tr><td>Mon</td><td class="raw">12:20–13:00</td><td>18 of 48</td><td>2.2 MWh</td><td><span class="tag">reviewed</span></td></tr><tr><td colspan="5" class="note">Total 10.7 MWh clipped this week · 24 inverters at the 3,100 kW AC rating on clear days</td></tr></tbody></table></div></div>`; }
+function fcTable(){ const rows=[['Mon','142','—','actual'],['Tue','156','—','actual'],['Wed','131','—','actual'],['Thu','97 (partial)','—','today'],['Fri','—','158 ± 18','forecast'],['Sat','—','171 ± 18','forecast'],['Sun','—','168 ± 18','forecast']]; return `<div class="card chart-card"><div class="card-h"><div class="ct"><span>Daily yield — actual vs forecast</span><small>MWh · Chisholm Ridge Solar · 90% CI</small></div></div><div class="card-b" style="padding:0"><table class="tbl compact"><thead><tr><th>Day</th><th>Actual</th><th>Forecast</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td style="color:var(--blue)">${r[2]}</td><td><span class="tag ${r[3]==='today'?'blue':r[3]==='forecast'?'':'green'}">${r[3]}</span></td></tr>`).join('')}<tr><td colspan="4" class="note">Week to date 526 MWh · forecast week total 1,023 MWh</td></tr></tbody></table></div></div>`; }
+function prTable(){ const rows=[['Chisholm Ridge','48','96.4%','2 below 95%'],['Pecos Flats','30','95.9%','1 below 95%'],['Big Sandy','24','97.1%','—'],['Cedar Bluff','12','—','offline'],['Little River','12','94.0%','fault, 5 below 95%']]; return `<div class="card chart-card"><div class="card-h"><div class="ct"><span>Performance Ratio by site</span><small>perf-degradation-ml v2.0.3 · yesterday</small></div></div><div class="card-b" style="padding:0"><table class="tbl compact"><thead><tr><th>Site</th><th>Inverters</th><th>Median PR</th><th>Flags</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td style="color:${/below|fault/.test(r[3])?'var(--amber)':'var(--muted)'}">${r[3]}</td></tr>`).join('')}</tbody></table></div></div>`; }
+function drawCharts(t){ const c=$('#charts'); c.innerHTML = t==='ac'? acChart()+ceTable() : t==='fc'? fcChart()+fcTable() : t==='pr'? prChart()+prTable() : ceTable()+acChart(); }
+$$('#an-tabs button').forEach(b=>b.addEventListener('click',()=>{ $$('#an-tabs button').forEach(x=>x.classList.toggle('is-on',x===b)); drawCharts(b.dataset.t); }));
+drawCharts('ac');
+$$('.an-it').forEach(a=>a.addEventListener('click',()=>{ $$('.an-it').forEach(x=>x.classList.toggle('is-on',x===a)); }));
+
+/* ---------- Screen 4: rollout ---------- */
+let wave=2, paused=false, rolledBack=false;
+const WAVES=[{n:'Wave 1 · Canary',s:'(1 node)',g:'error rate < 1% ✓ · ingest continuity ✓'},{n:'Wave 2 · 20%',s:'(1 node)',g:'error rate < 1% ✓ · ingest continuity ✓'},{n:'Wave 3 · 60%',s:'(2 nodes)',g:'1 of 2 nodes · health gate: monitoring'},{n:'Wave 4 · Remainder',s:'(1 node)',g:'Blocked — pkt-node-033 offline · applies on reconnect'}];
+const AUD=[['08:40','CR-2291 created by J. Okafor'],['09:15','Approvals complete — 2 of 2'],['09:20','Wave 1 applied — canary healthy'],['10:30','Wave 2 applied — healthy'],['11:02','Wave 3 started — 2 nodes targeted'],['11:40','pkt-node-033 queued — offline, awaiting reconnect']];
+function drawRoll(){
+  $('#roll-body').innerHTML = WAVES.map((w,i)=>{ const st=i<wave?'done':i===wave?'cur':'q'; return `<div class="wave ${st}"><div class="wh"><i></i><b>${w.n}</b><span style="color:var(--muted)">${w.s}</span><span class="sp"></span>${st==='done'?'<span class="tag green">Passed · 100%</span>':st==='cur'?`<span class="tag blue">${paused?'Paused':'In progress'}</span>`:'<span class="tag">Queued</span>'}</div>${st==='cur'?`<div class="bar-h"><i style="width:${paused?50:60}%"></i></div>`:''}<div class="g ${st==='done'?'ok':''}">${w.g}</div></div>`; }).join('') + `<div class="acts"><button class="btn" id="pause">${paused?'Resume rollout':'Pause rollout'}</button><button class="btn danger" id="rb">Roll back to v4.11</button></div><div class="arm">Auto-rollback armed<span class="toggle" id="arm"></span></div>${rolledBack?'<div class="info">Rollback requested · requires 1 approval · nothing changes on any node until approved.</div>':''}`;
+  $('#pause').addEventListener('click',()=>{paused=!paused;drawRoll();});
+  $('#rb').addEventListener('click',()=>{rolledBack=true;drawRoll();});
+  $('#arm').addEventListener('click',()=>$('#arm').classList.toggle('off'));
+  $('#fl-audit').innerHTML = AUD.map(a=>`<div><span class="t">${a[0]}</span><span>${a[1]}</span></div>`).join('') + `<div class="pend"><span class="t">—</span><span>${paused?'paused by J. Okafor':'next: wave 4 · remainder'}</span></div>`;
+}
+drawRoll(); fitStage();
+$$('.node-mk').forEach(m=>m.addEventListener('click',()=>toast(m.querySelector('span').textContent+' · '+(m.classList.contains('off')?'offline · v4.09 · 2 pending':m.classList.contains('fault')?'fault · v4.09':m.classList.contains('warn')?'warning · analytic version behind':'healthy · v4.12'))));
+$$('.fl-tabs button').forEach(b=>b.addEventListener('click',()=>{ $$('.fl-tabs button').forEach(x=>x.classList.toggle('is-on',x===b)); if(b.textContent==='Nodes') toast('Nodes tab: same registry table, expanded'); }));
+// deep link
+const h0=(location.hash||'').slice(1); if(SCREENS().includes(h0)) show(h0); else show('map');
+
+/* ================= V3 layer: V1 features merged into the V2 replica ================= */
+
+/* ---- Map: hybrid site, scale and unit cases, 7-signal reasoning ---- */
+$('#s-map .sub').textContent='Chisholm Ridge Solar + Storage — is this tag mapped correctly?';
+$('#s-map .chip.sel').textContent='Chisholm Ridge Solar + Storage';
+SRCS[0].m='10.4.22.31:502<br>1,498 tags · read-only';
+SRCS.push({t:'MQTT / Sparkplug B',m:'spBv1.0/chisholm · 246 tags<br>BESS containers 6–8'});
+ASSETS.bess={row:11.0,t:'BESS Container 7',s:'Vendor E · 16 racks',cls:'',x:528,parent:null};
+// drop two redundant inverter rows to keep the canvas on one screen, add the new cases
+['INV3_ACPWR_L2','INV3_DCI'].forEach(id=>{ const i=TAGS.findIndex(t=>t.id===id); if(i>=0) TAGS.splice(i,1); });
+const extra=[
+ {id:'40071',cls:'hi',canon:'AC Voltage AB',cmeta:'V · SF −2 · 98%',src:0,asset:'inv3',unit:'V',scale:'SF −2 (×0.01)',role:'Measurement',klass:'Inverter / String Inverter',obj:['Feeder 2','Inverter 3','AC Bus','Voltage AB'],conf:'98%',why:[['SunSpec','Model 103 register 40071 = PhVphAB; scale factor register 40076 reads −2','0.58',1],['Data stats','Raw 23,380–23,520; scaled 233.8–235.2 V, inside the 600 V class','0.27',0],['Prior site','Big Sandy, same SunSpec map','0.15',0]],addr:'HR40071',live:'234.56',lu:'V',who:'auto<br>accepted<br>14:10 CDT',scaleCase:true},
+ {id:'HR_30775',cls:'md',canon:'AC Power (total)',cmeta:'W → kW · 74%',src:0,asset:'inv4',unit:'kW',scale:'×0.001 (W → kW)',role:'Measurement',klass:'Inverter / String Inverter',obj:['Feeder 2','Inverter 4','AC Power','Total'],conf:'74%',why:[['Physical cross-check','Σ inverters ≈ POI meter only if this register is W, not kW: 1,472,000 W = 1,472 kW','0.46',1],['Data stats','Magnitude 10³ above every other inverter','0.30',0],['Vendor doc','Vendor B register map unavailable','0.24',0]],addr:'HR30775',live:'1,472,000',lu:'W',who:'pending<br>review',unitCase:true}
+];
+TAGS.splice(3,0,extra[0]); TAGS.splice(4,0,extra[1]);
+TAGS.push(
+ {id:'BESS_07_SOC',cls:'hi',canon:'State of Charge',cmeta:'% · 95% · behaviour',src:3,asset:'bess',unit:'%',role:'Measurement',klass:'BESS / Container',obj:['BESS','Container 7','State of Charge'],conf:'95%',why:[['Physical cross-check','SOC slope matches integrated PCS-02 current; sign flips with charge and discharge','0.50',1],['Prior site','Pine Hollow BESS, same container type','0.30',0],['Data stats','10–90 % window, 2 cycles per day','0.15',0]],addr:'metric 0',live:'54.2',lu:'%',who:'auto<br>accepted<br>14:10 CDT'},
+ {id:'RK04_CELL_TMAX',cls:'hi',canon:'Cell Temp Max',cmeta:'Rack 04 · °C · 91%',src:3,asset:'bess',unit:'°C',role:'Measurement',klass:'BESS / Rack',obj:['BESS','Container 7','Rack 04','Cell Temp Max'],conf:'91%',why:[['Naming','RK04_ prefix matches rack index in neighbouring tags','0.44',1],['Data stats','20–38 °C, rises with discharge power','0.36',0],['Prior site','Larkspur BESS, 12 matching tags','0.20',0]],addr:'metric r4.3',live:'31.6',lu:'°C',who:'J. Okafor<br>accepted<br>14:15 CDT'},
+ {id:'BMS2.Vrack',cls:'md',canon:'Rack Voltage',cmeta:'V · 78% · rack index ambiguous',src:3,asset:'bess',unit:'V',role:'Measurement',klass:'BESS / Rack',obj:['BESS','Container 7','Rack ?','Voltage'],conf:'78%',why:[['Data stats','1,100–1,400 V, tracks container voltage','0.40',1],['Neighbours','No rack index in the metric name; 16 candidates','0.22',0],['Prior site','Partial match at Larkspur','0.16',0]],addr:'metric vrack',live:'1,278.4',lu:'V',who:'pending<br>review'}
+);
+// seven-signal strip and physical cross-check card in the inspector
+const SIG7=['Naming','Range','Behaviour','Physics','SunSpec','Neighbours','Other site'];
+function sig7(t){ const c=parseInt(t.conf); const isPow=/Power|SOC|Charge/.test(t.canon||''); const pattern = t.cls==='un'?['n','n','n','m','m','n','n'] : t.cls==='corr'?['n','y','y','m','m','m','n'] : t.cls==='md'?['m','y','y',isPow?'y':'m','m','y','m'] : ['y','y','y',isPow?'y':'y',t.src===0?'y':'m','y','y']; return pattern; }
+inspExtra = function(t){
+  const p=sig7(t); const agree=p.filter(x=>x==='y').length;
+  let html=`<div><div class="eyebrow" style="margin-bottom:8px">Multi-Signal Inference · ${agree} of 7 agree</div><div class="sig7">${SIG7.map((s,i)=>`<div><i class="${p[i]}"></i><span>${s}</span></div>`).join('')}</div></div>`;
+  if (/Power/.test(t.canon||'')&&t.cls!=='un') html+=`<div class="why"><div class="phys"><div class="wh"><span class="tag outline">Physical cross-check</span><span class="sp"></span><span class="w">agrees</span></div><p>kW ≈ V × A × √3 × PF within 1.8 % on this device · Σ inverter AC power ≈ POI meter minus losses (1.4 %)</p></div></div>`;
+  if (t.scaleCase){ const raw=Array.from({length:30},(_,i)=>23380+Math.sin(i/4)*60+i); const pts=a=>a.map((v,i)=>`${i/29*100},${28-((v-Math.min(...a))/(Math.max(...a)-Math.min(...a)+1))*24}`).join(' '); html+=`<div><div class="eyebrow" style="margin-bottom:8px">Unit and scale inference</div><div class="scalecase"><div><span class="eyebrow">Raw register</span><b>23456</b><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="${pts(raw)}" stroke="#B45309"/></svg></div><div><span class="eyebrow">Scaled · SF −2</span><b class="blue">234.56 V</b><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="${pts(raw)}" stroke="#2563EB"/></svg></div><div class="full">Scale factor register 40076 reads −2. Applied ×0.01. Phase-to-phase voltage within the inverter's 600 V class.</div></div></div>`; }
+  if (t.unitCase){ html+=`<div><div class="eyebrow" style="margin-bottom:8px">Unit inference</div><div class="scalecase"><div><span class="eyebrow">As the DAS reads it</span><b style="color:var(--red)">1,472,000 kW</b><span class="note">exceeds the whole 60 MW site</span></div><div><span class="eyebrow">Proposed</span><b class="blue">1,472 kW</b><span class="note">register is W · scale ×0.001</span></div><div class="full">With this register in W, the sum of all 30 inverters matches the POI meter within 1.4 %. Accepting corrects the DAS point too.</div></div></div>`; }
+  return html;
+};
+$('#m-mapped').textContent='1,572 mapped'; $('#m-unmapped').textContent='412 unmapped';
+selTag=TAGS[0]; drawMap(); drawInsp();
+
+/* ---- Commission: discovery and inference motion on first open ---- */
+let comAnimated=false;
+onShow.commission=()=>{ if(comAnimated||matchMedia('(prefers-reduced-motion: reduce)').matches) return; comAnimated=true;
+  const fills=$$('#cov .bar-h i, .aicard .tiers .bar-h i'); fills.forEach(i=>{ i.classList.add('fill'); i.dataset.target=i.dataset.w; i.style.width='0%'; });
+  const nums=$$('#cov [data-n], #ai-n'); nums.forEach(n=>{ n.dataset.target=n.dataset.n; n.textContent='0'; });
+  const rows=$$('#nr-rows tr'); rows.forEach(r=>r.style.opacity='0');
+  const t0=performance.now(), dur=1600;
+  const tick=now=>{ const k=Math.min(1,(now-t0)/dur); const e=1-Math.pow(1-k,3); nums.forEach(n=>{ n.textContent=Math.round(+n.dataset.target*e).toLocaleString(); }); if(k<1) requestAnimationFrame(tick); };
+  requestAnimationFrame(()=>{ fills.forEach(i=>i.style.width=i.dataset.target+'%'); requestAnimationFrame(tick); });
+  rows.forEach((r,i)=>setTimeout(()=>{ r.style.opacity=''; r.classList.add('nr-in'); }, 900+i*140));
+  setTimeout(()=>toast('Discovery complete · 1,247 tags · 1,180 proposed automatically'), 1700);
+};
+
+/* ---- Model screen ---- */
+const ROS=[
+ ['Inverter / String Inverter',[
+  ['ac_power_kw','kW',['INV3_ACPWR','hi'],['NR.PV.B02.INV05.P_AC','hi'],['Inv_05_W','hi'],['HR_30775','md']],
+  ['ac_power_l1_kw','kW',['INV3_ACPWR_L1','hi'],['NR.PV.B02.INV05.P_AC_L1','hi'],['Inv_05_W_A','hi'],['—','na']],
+  ['dc_voltage_v','V',['INV3_DCV','hi'],['NR.PV.B02.INV05.U_DC','hi'],['Inv_05_DCV','hi'],['HR_30766','hi']],
+  ['ac_voltage_ab_v','V · SF',['40071','hi'],['NR.PV.B02.INV05.U_AB','hi'],['40071','hi'],['HR_30774','md']],
+  ['heatsink_temp_c','°C',['INV3_TEMP_HS','hi'],['NR.PV.B02.INV05.T_HS','hi'],['Inv_05_TmpHS','md'],['HR_30794','md']],
+  ['cabinet_temp_c','°C',['TMP_CAB_03','md'],['NR.PV.B02.INV05.T_CAB','hi'],['—','na'],['—','na']],
+  ['operating_state','enum',['INV3_STATE','hi'],['NR.PV.B02.INV05.ST','hi'],['Inv_05_St','hi'],['HR_30798','lo']]]],
+ ['BESS / Container · Rack',[
+  ['soc_pct','%',['BESS_07_SOC','hi'],['NR.ESS.C04.SOC','hi'],['—','na'],['—','na']],
+  ['cell_temp_max_c','°C',['RK04_CELL_TMAX','hi'],['NR.ESS.C04.R07.T_CELL_MAX','hi'],['—','na'],['—','na']],
+  ['rack_voltage_v','V',['BMS2.Vrack','md'],['NR.ESS.C04.R07.U','hi'],['—','na'],['—','na']],
+  ['pcs.ac_power_kw','kW',['PCS-02.kW_out','hi'],['NR.ESS.PCS02.P_kW','hi'],['—','na'],['—','na']]]],
+ ['POI · PPC · Met',[
+  ['poi.active_power_mw','MW',['POI_MW','hi'],['NR.PPC.POI.P_MW','hi'],['PPC_POI_P','hi'],['POI_P','hi']],
+  ['poi.rtu.active_power_mw','MW',['AI_0017','md'],['NR.RTU.AI17','hi'],['—','na'],['—','na']],
+  ['ppc.p_setpoint_readback_kw','kW',['PPC_P_SP_RB','hi'],['NR.PPC.P_SP_FB','hi'],['PPC_SP_RB','hi'],['—','na']],
+  ['met.ghi_w_m2','W/m²',['MET_GHI','hi'],['NR.MET.01.GHI','hi'],['WS1_GHI_Wm2','hi'],['GHI_1','hi']]]]
+];
+const SITES=[['Chisholm Ridge','Vendor A · fw 3.2'],['North Ridge','Vendor F · fw 2.4'],['Big Sandy','Vendor A · fw 3.1']];
+function drawRos(){ $('#ros').innerHTML=`<thead><tr><th>Standard point<small>canonical-model v4.12</small></th>${SITES.map(s=>`<th>${s[0]}<small>${s[1]}</small></th>`).join('')}</tr></thead><tbody>${ROS.map(g=>`<tr><td class="g" colspan="4">${g[0]}</td></tr>`+g[1].map(r=>`<tr><td class="std">${r[0]}<small>${r[1]}</small></td>${r.slice(2,5).map(c=>`<td><span class="rc ${c[1]}">${c[0]}</span></td>`).join('')}</tr>`).join('')).join('')}</tbody>`; }
+const STAMPS=[['Chisholm Ridge','Vendor A A-2000 · fw 3.2','24 inverters','hi',['INV%_ACPWR','INV%_DCV','40071 (SunSpec)']],['Chisholm Ridge','Vendor B B-2000 · fw 1.9','6 inverters','md',['HR_30760…','HR_30775 (W)','4 in review']],['Big Sandy','Vendor A A-2000 · fw 3.1','48 inverters','hi',['Inv_%_W','Inv_%_DCV','40071 (SunSpec)']],['North Ridge','Vendor F F-4000 · fw 2.4','20 inverters','hi',['NR.PV.B%.INV%.P_AC','…U_DC','OPC-UA']],['Cimarron Flats','Vendor B B-2000 · fw 1.9','48 inverters','q',['template match','re-propose?']]];
+let tplSaved=false;
+function drawStamps(){ $('#stamps').innerHTML=STAMPS.map(s=>`<div class="stamp ${s[3]}"><b>${s[0]}</b><span class="n">${s[2]}</span><span class="note">${s[1]}</span><span></span><div class="raws">${s[4].map(r=>`<span class="tag ${s[3]==='hi'?'blue':s[3]==='md'?'amber':''}">${r}</span>`).join('')}</div></div>`).join('') + `<div class="note">Same 64 standard points at every site. Only the raw tag names underneath change.</div>`; }
+const DRIFT=[['INV%_ACPWR','INV%_AC_P','ac_power_kw'],['INV%_TEMP_HS','INV%_T_HEATSINK','heatsink_temp_c'],['INV%_KWH_TOT','INV%_E_TOTAL','energy_total_kwh'],[null,'INV%_DC_INS_R','dc_insulation_resistance_kohm'],[null,'INV%_DERATE_REASON','derate_reason']];
+let driftAcc=[], remapState='idle';
+function drawDrift(){
+  $('#drift').innerHTML=`<div class="note" style="padding-bottom:4px">Vendor A A-2000 · fw 3.2 → 3.3 · 24 inverters at Chisholm Ridge · 3 renamed, 2 new, 0 removed · applications affected: 0 (addressed by standard name)</div>`+DRIFT.map((d,i)=>`<div class="dr"><span>${d[0]?`<span class="was mono">${d[0].replace('%','3')}</span>`:'<span class="tag blue">new</span>'}</span><span class="mono">${d[1].replace('%','3')}</span><span class="mono" style="color:var(--muted)">${d[2]}</span><span>${driftAcc.includes(i)?'<span class="tag green">accepted · 24</span>':`<button class="btn small outline-blue" data-dacc="${i}">Accept re-mapping</button>`}</span></div>`).join('');
+  $$('[data-dacc]').forEach(b=>b.addEventListener('click',()=>{ driftAcc.push(+b.dataset.dacc); drawDrift(); if(driftAcc.length===5) toast('All 5 re-mappings accepted across 24 inverters · model v4.13'); }));
+  $('#remap').innerHTML = !tplSaved ? `<b>Fleet remap</b><span class="note">Save the Vendor A A-2000 fw 3.2 template to see where else it applies.</span>` : remapState==='idle' ? `<b>This template matches 14 other sites. Re-propose mappings?</b><span class="note">Re-proposals go to each site's review queue. Nothing changes until an engineer accepts them; no device is touched.</span><div><button class="btn primary small" id="remap-go">Re-propose at 14 sites</button></div>` : remapState==='pending' ? `<b>Awaiting approval · S. Ahmed (O&amp;M lead)</b><span class="note">1,536 inverter points per site queued behind one approval.</span><div><button class="btn small" id="remap-ok">Approve as S. Ahmed</button></div>` : `<b><span class="tag green">queued at 14 sites</span></b><span class="note">Each site's engineer sees the re-proposed mappings in their review queue.</span>`;
+  $('#remap-go')?.addEventListener('click',()=>{ remapState='pending'; drawDrift(); });
+  $('#remap-ok')?.addEventListener('click',()=>{ remapState='done'; drawDrift(); toast('Queued. 14 sites will see re-proposed mappings in review.'); });
+}
+$('#save-tpl').addEventListener('click',()=>{ tplSaved=true; $('#save-tpl').textContent='Template saved ✓'; $('#save-tpl').disabled=true; drawDrift(); toast('Template saved: Vendor A A-2000, fw 3.2 · 64 points'); });
+const DQ=[['Flatlined','MET_TMOD_2','met.ms02.module_temp_c · 21.0 °C for 9 days while MET-01 tracks irradiance',Array(30).fill(10),'#B45309'],['Frozen','BMS1.Rk09.SOC','bess.c6.rk09.soc_pct · 50.0 % while the container cycles 18–86 %',Array(30).fill(15),'#B45309'],['Mis-scaled','REV_MTR_KWH_DEL','poi.meter.energy_delivered_kwh · 10× high against Σ inverter energy; register uses ×10',Array.from({length:30},(_,i)=>28-i*0.9),'#B91C1C'],['Unit','HR_30775','pv.inv27.ac_power_kw · reported in W, DAS treats as kW',Array.from({length:30},(_,i)=>26-Math.sin(i/9*Math.PI)*22),'#B91C1C'],['Duplicate','POI_MW · AI_0017','poi.active_power_mw · PPC and RTU both report POI power; RTU lags 2 s',Array.from({length:30},(_,i)=>26-Math.sin(i/9*Math.PI)*22),'#2563EB'],['Non-responding','TRK_14_* · TRK_27_*','24 points · two tracker controllers did not answer on the serial gateway',Array(30).fill(27),'#9CA3AF']];
+function drawDQ(){ $('#dq').innerHTML=DQ.map(d=>`<div class="dqr"><div class="k">${d[0]}<small>${d[1]}</small></div><div class="d">${d[2]}</div><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="${d[3].map((v,i)=>`${i/29*100},${v}`).join(' ')}" stroke="${d[4]}"/></svg></div>`).join('')+`<div class="note" style="padding-top:6px">Stale 14 · flatlined 3 · out of range 5 · mis-scaled 2 · duplicate 4 · non-responding 24 = 52 points. Included in the data-quality report and attached to each point's lineage.</div>`; }
+drawRos(); drawStamps(); drawDrift(); drawDQ();
+
+/* ---- Guided tour ---- */
+const TOUR=[['commission','Commission a site: discovery runs read-only, 94.6% of tags are proposed automatically, the engineer reviews the rest.'],['map','Map and contextualize: every proposal shows its evidence. Accept, correct or queue. Scale and unit errors are caught here.'],['model','Canonical Asset Model: one vocabulary across vendors and sites, templated, versioned, and re-checked for drift.'],['analytics','Analytics and runtime: written once against the model, resolved per node, running on site through connectivity loss.'],['fleet','Fleet: what is running where, rolled out in waves with health gates, approvals and an audit trail.']];
+const gbar=document.createElement('div'); gbar.className='guide'; gbar.innerHTML=`<span class="gs" id="g-step">1 / 5</span><span class="gc" id="g-cap"></span><button id="g-back">Back</button><button class="next" id="g-next">Next</button><button class="ghost" id="g-reset" title="Reset the demo">Reset</button>`; $('.foot').insertBefore(gbar,$('#foot-r'));
+function syncGuide(id){ const i=TOUR.findIndex(t=>t[0]===id); if(i<0) return; $('#g-step').textContent=`${i+1} / ${TOUR.length}`; $('#g-cap').textContent=TOUR[i][1]; $('#g-back').disabled=i===0; $('#g-next').disabled=i===TOUR.length-1; }
+document.addEventListener('screen',e=>syncGuide(e.detail));
+$('#g-next').addEventListener('click',()=>{ const i=TOUR.findIndex(t=>t[0]===(location.hash||'').slice(1)); show(TOUR[Math.min(TOUR.length-1,i+1)][0]); });
+$('#g-back').addEventListener('click',()=>{ const i=TOUR.findIndex(t=>t[0]===(location.hash||'').slice(1)); show(TOUR[Math.max(0,i-1)][0]); });
+$('#g-reset').addEventListener('click',()=>{ try{history.replaceState(null,'',location.pathname);}catch(e){} location.reload(); });
+$('#foot-r').textContent='Packet · V3';
+show((location.hash||'').slice(1)||'commission');
+
+</script>
+</body>
+</html>
